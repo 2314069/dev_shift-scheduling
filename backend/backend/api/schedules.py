@@ -1,9 +1,13 @@
+from datetime import date as date_type
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.models import ScheduleAssignment, SchedulePeriod
+from backend.optimizer.solver import solve_schedule
 from backend.schemas import (
+    OptimizeResponse,
     ScheduleAssignmentResponse,
     ScheduleAssignmentUpdate,
     SchedulePeriodCreate,
@@ -67,3 +71,49 @@ def publish_schedule(period_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(period)
     return period
+
+
+@router.post("/{period_id}/optimize", response_model=OptimizeResponse)
+def optimize_schedule(period_id: int, db: Session = Depends(get_db)):
+    period = db.get(SchedulePeriod, period_id)
+    if not period:
+        raise HTTPException(status_code=404, detail="Schedule period not found")
+
+    # 既存の自動生成結果を削除（手動編集は保持）
+    db.query(ScheduleAssignment).filter(
+        ScheduleAssignment.period_id == period_id,
+        ScheduleAssignment.is_manual_edit == False,  # noqa: E712
+    ).delete()
+    db.commit()
+
+    result = solve_schedule(db, period_id)
+
+    if result["status"] == "optimal":
+        for a in result["assignments"]:
+            assignment = ScheduleAssignment(
+                period_id=period_id,
+                staff_id=a["staff_id"],
+                date=date_type.fromisoformat(a["date"]),
+                shift_slot_id=a["shift_slot_id"],
+                is_manual_edit=False,
+            )
+            db.add(assignment)
+        db.commit()
+
+        # DB保存後のレスポンス用に再取得
+        saved = (
+            db.query(ScheduleAssignment)
+            .filter(ScheduleAssignment.period_id == period_id)
+            .all()
+        )
+        return OptimizeResponse(
+            status=result["status"],
+            message=result["message"],
+            assignments=saved,
+        )
+
+    return OptimizeResponse(
+        status=result["status"],
+        message=result["message"],
+        assignments=[],
+    )
