@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend import models  # noqa: F401
+from backend.api.staff import router as staff_router
 from backend.database import Base, engine
 
 Base.metadata.create_all(bind=engine)
@@ -15,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(staff_router)
 
 
 @app.get("/api/health")
