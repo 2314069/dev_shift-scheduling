@@ -29,6 +29,11 @@ def create_schedule_period(
     return period
 
 
+@router.get("", response_model=list[SchedulePeriodResponse])
+def list_schedule_periods(db: Session = Depends(get_db)):
+    return db.query(SchedulePeriod).order_by(SchedulePeriod.start_date.desc()).all()
+
+
 @router.get("/{period_id}", response_model=ScheduleResponse)
 def get_schedule(period_id: int, db: Session = Depends(get_db)):
     period = db.get(SchedulePeriod, period_id)
