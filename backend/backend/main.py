@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import models  # noqa: F401
 from backend.api.shift_slots import router as shift_slots_router
 from backend.api.staff import router as staff_router
+from backend.api.staffing_requirements import router as staffing_requirements_router
 from backend.database import Base, engine
 
 Base.metadata.create_all(bind=engine)
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(staff_router)
 app.include_router(shift_slots_router)
+app.include_router(staffing_requirements_router)
 
 
 @app.get("/api/health")
