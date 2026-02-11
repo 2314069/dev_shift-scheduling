@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Glob",
+      "Grep"
+    ]
+  },
+  "model": "sonnet",
+  "customInstructions": "このプロジェクトはハイブリッド型マルチエージェント構成を採用しています。各エージェントは自分の責務に専念し、他のエージェントの責務を侵害しないでください。"
+}
