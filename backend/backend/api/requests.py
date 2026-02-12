@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import StaffRequest, SchedulePeriod
 from backend.schemas import StaffRequestBulkCreate, StaffRequestResponse
+from backend.services import RequestService
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
 
@@ -14,26 +14,17 @@ def list_requests(
     staff_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    period = db.get(SchedulePeriod, period_id)
-    query = db.query(StaffRequest).filter(
-        StaffRequest.date >= period.start_date,
-        StaffRequest.date <= period.end_date,
-    )
-    if staff_id is not None:
-        query = query.filter(StaffRequest.staff_id == staff_id)
-    return query.all()
+    service = RequestService(db)
+    try:
+        return service.list_requests_for_period(period_id, staff_id=staff_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("", response_model=list[StaffRequestResponse], status_code=201)
 def bulk_create_requests(
     data: StaffRequestBulkCreate, db: Session = Depends(get_db)
 ):
-    created = []
-    for item in data.requests:
-        req = StaffRequest(**item.model_dump())
-        db.add(req)
-        created.append(req)
-    db.commit()
-    for req in created:
-        db.refresh(req)
-    return created
+    service = RequestService(db)
+    items = [item.model_dump() for item in data.requests]
+    return service.bulk_create_requests(items)

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = "sqlite:///shift_scheduling.db"
@@ -17,3 +17,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _run_migrations(engine_instance):
+    """既存テーブルに新しいカラムを追加するマイグレーション"""
+    with engine_instance.connect() as conn:
+        # staff テーブルに min_days_per_week カラムがなければ追加
+        result = conn.execute(text("PRAGMA table_info(staff)"))
+        columns = {row[1] for row in result}
+        if "min_days_per_week" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE staff ADD COLUMN min_days_per_week INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+            conn.commit()

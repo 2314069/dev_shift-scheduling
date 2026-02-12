@@ -8,12 +8,14 @@ class StaffCreate(BaseModel):
     name: str
     role: str
     max_days_per_week: int = 5
+    min_days_per_week: int = 0
 
 
 class StaffUpdate(BaseModel):
     name: str | None = None
     role: str | None = None
     max_days_per_week: int | None = None
+    min_days_per_week: int | None = None
 
 
 class StaffResponse(BaseModel):
@@ -21,6 +23,7 @@ class StaffResponse(BaseModel):
     name: str
     role: str
     max_days_per_week: int
+    min_days_per_week: int
 
     model_config = {"from_attributes": True}
 
@@ -131,3 +134,59 @@ class OptimizeResponse(BaseModel):
     status: str  # "optimal", "infeasible"
     message: str
     assignments: list[ScheduleAssignmentResponse]
+
+
+# --- SolverConfig ---
+class SolverConfigUpdate(BaseModel):
+    max_consecutive_days: int | None = None
+    time_limit: int | None = None
+    min_shift_interval_hours: int | None = None
+    enable_preferred_shift: bool | None = None
+    enable_fairness: bool | None = None
+    enable_weekend_fairness: bool | None = None
+    enable_shift_interval: bool | None = None
+    enable_role_staffing: bool | None = None
+    enable_min_days_per_week: bool | None = None
+    enable_soft_staffing: bool | None = None
+    weight_preferred: float | None = None
+    weight_fairness: float | None = None
+    weight_weekend_fairness: float | None = None
+    weight_soft_staffing: float | None = None
+
+
+class SolverConfigResponse(BaseModel):
+    id: int
+    max_consecutive_days: int
+    time_limit: int
+    min_shift_interval_hours: int
+    enable_preferred_shift: bool
+    enable_fairness: bool
+    enable_weekend_fairness: bool
+    enable_shift_interval: bool
+    enable_role_staffing: bool
+    enable_min_days_per_week: bool
+    enable_soft_staffing: bool
+    weight_preferred: float
+    weight_fairness: float
+    weight_weekend_fairness: float
+    weight_soft_staffing: float
+
+    model_config = {"from_attributes": True}
+
+
+# --- RoleStaffingRequirement ---
+class RoleStaffingRequirementCreate(BaseModel):
+    shift_slot_id: int
+    day_type: str
+    role: str
+    min_count: int
+
+
+class RoleStaffingRequirementResponse(BaseModel):
+    id: int
+    shift_slot_id: int
+    day_type: str
+    role: str
+    min_count: int
+
+    model_config = {"from_attributes": True}
