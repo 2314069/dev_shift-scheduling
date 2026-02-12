@@ -2,6 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type {
   Staff,
@@ -12,6 +14,7 @@ import type {
   ScheduleAssignment,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -57,10 +60,6 @@ function StaffPageContent() {
 
   // Submit state
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
 
   // Fetch staff list
   useEffect(() => {
@@ -70,7 +69,6 @@ function StaffPageContent() {
         const data = await apiFetch<Staff[]>("/api/staff");
         setStaffList(data);
 
-        // If staffIdParam is present, find the staff member
         if (staffIdParam) {
           const found = data.find((s) => s.id === Number(staffIdParam));
           if (found) {
@@ -79,7 +77,7 @@ function StaffPageContent() {
         }
       } catch (e) {
         console.error(e);
-        setMessage({ type: "error", text: "スタッフ情報の取得に失敗しました" });
+        toast.error("スタッフ情報の取得に失敗しました");
       } finally {
         setLoadingStaff(false);
       }
@@ -100,7 +98,7 @@ function StaffPageContent() {
         setShiftSlots(slotsData);
       } catch (e) {
         console.error(e);
-        setMessage({ type: "error", text: "データの取得に失敗しました" });
+        toast.error("データの取得に失敗しました");
       } finally {
         setLoadingPeriods(false);
       }
@@ -126,7 +124,6 @@ function StaffPageContent() {
         );
         setExistingRequests(requestsData);
 
-        // Initialize pending requests from existing
         const map = new Map<string, RequestEntry>();
         for (const req of requestsData) {
           map.set(req.date, {
@@ -137,10 +134,7 @@ function StaffPageContent() {
         setPendingRequests(map);
       } catch (e) {
         console.error(e);
-        setMessage({
-          type: "error",
-          text: "スケジュールまたは希望情報の取得に失敗しました",
-        });
+        toast.error("スケジュールまたは希望情報の取得に失敗しました");
       } finally {
         setLoadingRequests(false);
       }
@@ -159,7 +153,29 @@ function StaffPageContent() {
     }
   }, [selectedPeriodId, selectedStaff, fetchScheduleAndRequests]);
 
-  // Handle request changes from the calendar
+  // Check for unsaved changes
+  const hasChanges =
+    pendingRequests.size !== existingRequests.length ||
+    Array.from(pendingRequests.entries()).some(([date, entry]) => {
+      const existing = existingRequests.find((r) => r.date === date);
+      if (!existing) return true;
+      return (
+        existing.type !== entry.type ||
+        existing.shift_slot_id !== entry.shift_slot_id
+      );
+    });
+
+  // Unsaved changes warning
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (hasChanges) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
+
   function handleRequestsChange(requests: Map<string, RequestEntry>) {
     setPendingRequests(requests);
   }
@@ -170,7 +186,6 @@ function StaffPageContent() {
 
     try {
       setSubmitting(true);
-      setMessage(null);
 
       const requestItems = Array.from(pendingRequests.entries()).map(
         ([date, entry]) => ({
@@ -189,16 +204,15 @@ function StaffPageContent() {
         }),
       });
 
-      setMessage({ type: "success", text: "希望を提出しました" });
+      toast.success("希望を提出しました");
 
-      // Refresh existing requests
       const updatedRequests = await apiFetch<StaffRequest[]>(
         `/api/requests?period_id=${selectedPeriodId}&staff_id=${selectedStaff.id}`
       );
       setExistingRequests(updatedRequests);
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "希望の提出に失敗しました" });
+      toast.error("希望の提出に失敗しました");
     } finally {
       setSubmitting(false);
     }
@@ -210,7 +224,6 @@ function StaffPageContent() {
     return slot ? slot.name : `ID:${slotId}`;
   }
 
-  // If loading staff
   if (loadingStaff) {
     return (
       <div className="container mx-auto py-8">
@@ -256,16 +269,6 @@ function StaffPageContent() {
   }
 
   const isPublished = selectedPeriod?.status === "published";
-  const hasChanges =
-    pendingRequests.size !== existingRequests.length ||
-    Array.from(pendingRequests.entries()).some(([date, entry]) => {
-      const existing = existingRequests.find((r) => r.date === date);
-      if (!existing) return true;
-      return (
-        existing.type !== entry.type ||
-        existing.shift_slot_id !== entry.shift_slot_id
-      );
-    });
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -296,19 +299,6 @@ function StaffPageContent() {
         </Card>
       )}
 
-      {/* Message display */}
-      {message && (
-        <div
-          className={`p-3 rounded-md text-sm ${
-            message.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
       {/* Period Selection */}
       <Card>
         <CardHeader>
@@ -333,7 +323,13 @@ function StaffPageContent() {
                 {periods.map((period) => (
                   <SelectItem key={period.id} value={String(period.id)}>
                     {period.start_date} ~ {period.end_date}{" "}
-                    ({period.status === "draft" ? "下書き" : "公開済み"})
+                    {period.status === "draft" ? (
+                      <Badge variant="secondary" className="ml-1">
+                        下書き
+                      </Badge>
+                    ) : (
+                      <Badge className="ml-1">公開済み</Badge>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -373,6 +369,9 @@ function StaffPageContent() {
                     onClick={handleSubmit}
                     disabled={submitting || pendingRequests.size === 0}
                   >
+                    {submitting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {submitting ? "提出中..." : "希望を提出"}
                   </Button>
                   {hasChanges && pendingRequests.size > 0 && (

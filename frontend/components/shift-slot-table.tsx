@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Clock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type { ShiftSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export function ShiftSlotTable() {
   const [slots, setSlots] = useState<ShiftSlot[]>([]);
@@ -29,11 +32,29 @@ export function ShiftSlotTable() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<ShiftSlot | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<ShiftSlot | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
+
+  // Validation
+  const nameError = formName.trim() === "" ? "シフト名は必須です" : null;
+  const startTimeError = formStartTime === "" ? "開始時間は必須です" : null;
+  const endTimeError = formEndTime === "" ? "終了時間は必須です" : null;
+  const timeRangeError =
+    formStartTime && formEndTime && formEndTime <= formStartTime
+      ? "終了時間は開始時間より後にしてください"
+      : null;
+  const hasValidationError =
+    nameError !== null ||
+    startTimeError !== null ||
+    endTimeError !== null ||
+    timeRangeError !== null;
 
   async function fetchSlots() {
     try {
@@ -70,9 +91,11 @@ export function ShiftSlotTable() {
   }
 
   async function handleSave() {
+    if (hasValidationError) return;
+    setSaving(true);
     try {
       const body = {
-        name: formName,
+        name: formName.trim(),
         start_time: formStartTime,
         end_time: formEndTime,
       };
@@ -82,32 +105,37 @@ export function ShiftSlotTable() {
           method: "PUT",
           body: JSON.stringify(body),
         });
+        toast.success("シフト枠を更新しました");
       } else {
         await apiFetch<ShiftSlot>("/api/shift-slots", {
           method: "POST",
           body: JSON.stringify(body),
         });
+        toast.success("シフト枠を追加しました");
       }
 
       setDialogOpen(false);
       await fetchSlots();
     } catch (e) {
       console.error(e);
-      alert("保存に失敗しました");
+      toast.error("保存に失敗しました");
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function handleDelete(slot: ShiftSlot) {
-    if (!window.confirm(`「${slot.name}」を削除してもよろしいですか？`)) {
-      return;
-    }
-
+  async function handleDelete() {
+    if (!deleteTarget) return;
     try {
-      await apiFetch(`/api/shift-slots/${slot.id}`, { method: "DELETE" });
+      await apiFetch(`/api/shift-slots/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      toast.success(`「${deleteTarget.name}」を削除しました`);
+      setDeleteTarget(null);
       await fetchSlots();
     } catch (e) {
       console.error(e);
-      alert("削除に失敗しました");
+      toast.error("削除に失敗しました");
     }
   }
 
@@ -126,24 +154,29 @@ export function ShiftSlotTable() {
           <Button onClick={openAddDialog}>追加</Button>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>シフト名</TableHead>
-              <TableHead>開始時間</TableHead>
-              <TableHead>終了時間</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {slots.length === 0 ? (
+        {slots.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Clock className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground mb-1">
+              シフト枠が登録されていません
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              早番・遅番などのシフト枠を作成してください。
+            </p>
+            <Button onClick={openAddDialog}>最初のシフト枠を追加</Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  シフト枠が登録されていません
-                </TableCell>
+                <TableHead>シフト名</TableHead>
+                <TableHead>開始時間</TableHead>
+                <TableHead>終了時間</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
-            ) : (
-              slots.map((slot) => (
+            </TableHeader>
+            <TableBody>
+              {slots.map((slot) => (
                 <TableRow key={slot.id}>
                   <TableCell>{slot.name}</TableCell>
                   <TableCell>{slot.start_time}</TableCell>
@@ -159,16 +192,16 @@ export function ShiftSlotTable() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDelete(slot)}
+                      onClick={() => setDeleteTarget(slot)}
                     >
                       削除
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
@@ -189,6 +222,9 @@ export function ShiftSlotTable() {
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="例: 早番"
                 />
+                {formName !== "" && nameError && (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">開始時間</label>
@@ -197,6 +233,9 @@ export function ShiftSlotTable() {
                   value={formStartTime}
                   onChange={(e) => setFormStartTime(e.target.value)}
                 />
+                {startTimeError && (
+                  <p className="text-xs text-destructive">{startTimeError}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">終了時間</label>
@@ -205,6 +244,12 @@ export function ShiftSlotTable() {
                   value={formEndTime}
                   onChange={(e) => setFormEndTime(e.target.value)}
                 />
+                {endTimeError && (
+                  <p className="text-xs text-destructive">{endTimeError}</p>
+                )}
+                {timeRangeError && (
+                  <p className="text-xs text-destructive">{timeRangeError}</p>
+                )}
               </div>
             </div>
 
@@ -212,10 +257,27 @@ export function ShiftSlotTable() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 キャンセル
               </Button>
-              <Button onClick={handleSave}>保存</Button>
+              <Button
+                onClick={handleSave}
+                disabled={hasValidationError || saving}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+          title="シフト枠の削除"
+          description={`「${deleteTarget?.name}」を削除してもよろしいですか？この操作は取り消せません。`}
+          variant="destructive"
+          onConfirm={handleDelete}
+        />
       </CardContent>
     </Card>
   );

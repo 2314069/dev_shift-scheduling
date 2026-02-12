@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type { Staff, ShiftSlot, ScheduleAssignment } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -47,6 +48,11 @@ function getDatesInRange(startDate: string, endDate: string): string[] {
   return dates;
 }
 
+interface PendingEdit {
+  assignmentId: number;
+  newSlotId: number | null;
+}
+
 interface ShiftCalendarProps {
   periodId: number;
   startDate: string;
@@ -68,14 +74,22 @@ export function ShiftCalendar({
   isPublished,
   onAssignmentUpdated,
 }: ShiftCalendarProps) {
-  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [openPopoverKey, setOpenPopoverKey] = useState<string | null>(null);
+  const [localAssignments, setLocalAssignments] = useState<ScheduleAssignment[]>(assignments);
+  const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
   const [saving, setSaving] = useState(false);
+
+  // Sync localAssignments when assignments prop changes (after server fetch)
+  useEffect(() => {
+    setLocalAssignments(assignments);
+    setPendingEdits(new Map());
+  }, [assignments]);
 
   const dates = getDatesInRange(startDate, endDate);
 
   // Build a lookup map: `${staffId}-${date}` -> assignment
   const assignmentMap = new Map<string, ScheduleAssignment>();
-  for (const a of assignments) {
+  for (const a of localAssignments) {
     assignmentMap.set(`${a.staff_id}-${a.date}`, a);
   }
 
@@ -91,104 +105,150 @@ export function ShiftCalendar({
     return slot ? slot.name : "";
   }
 
-  async function handleCellEdit(
-    assignment: ScheduleAssignment,
-    newSlotId: string
-  ) {
+  function getSlotTimeRange(slotId: number): string {
+    const slot = shiftSlots.find((s) => s.id === slotId);
+    return slot ? `${slot.start_time}〜${slot.end_time}` : "";
+  }
+
+  const handleCellEdit = useCallback(
+    (staffId: number, date: string, assignment: ScheduleAssignment, newSlotId: string) => {
+      const key = `${staffId}-${date}`;
+      const parsedSlotId = newSlotId === "off" ? null : Number(newSlotId);
+
+      // Update local state optimistically
+      setLocalAssignments((prev) =>
+        prev.map((a) =>
+          a.id === assignment.id
+            ? { ...a, shift_slot_id: parsedSlotId, is_manual_edit: true }
+            : a
+        )
+      );
+
+      // Track pending edit
+      setPendingEdits((prev) => {
+        const next = new Map(prev);
+        // If reverting to original value, remove from pending
+        const original = assignments.find((a) => a.id === assignment.id);
+        if (original && original.shift_slot_id === parsedSlotId) {
+          next.delete(key);
+        } else {
+          next.set(key, { assignmentId: assignment.id, newSlotId: parsedSlotId });
+        }
+        return next;
+      });
+
+      setOpenPopoverKey(null);
+    },
+    [assignments]
+  );
+
+  async function handleSaveAll() {
+    if (pendingEdits.size === 0) return;
     setSaving(true);
     try {
-      const body: { shift_slot_id: number | null; is_manual_edit: boolean } = {
-        shift_slot_id: newSlotId === "off" ? null : Number(newSlotId),
-        is_manual_edit: true,
-      };
-      await apiFetch(
-        `/api/schedules/${periodId}/assignments/${assignment.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(body),
-        }
+      const results = await Promise.allSettled(
+        Array.from(pendingEdits.values()).map((edit) =>
+          apiFetch(`/api/schedules/${periodId}/assignments/${edit.assignmentId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              shift_slot_id: edit.newSlotId,
+              is_manual_edit: true,
+            }),
+          })
+        )
       );
+
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`${failed}件の更新に失敗しました`);
+      } else {
+        toast.success(`${pendingEdits.size}件の変更を保存しました`);
+      }
+
       onAssignmentUpdated();
-    } catch (e) {
-      console.error(e);
-      alert("シフトの更新に失敗しました");
+    } catch {
+      toast.error("シフトの保存に失敗しました");
     } finally {
       setSaving(false);
-      setEditingCell(null);
     }
+  }
+
+  function handleDiscardAll() {
+    setLocalAssignments(assignments);
+    setPendingEdits(new Map());
   }
 
   function renderCell(staff: Staff, date: string) {
     const key = `${staff.id}-${date}`;
     const assignment = assignmentMap.get(key);
-    const isEditing = editingCell === key;
+    const isPending = pendingEdits.has(key);
 
-    if (isEditing && assignment && !isPublished) {
-      return (
-        <Select
-          value={
-            assignment.shift_slot_id !== null
-              ? String(assignment.shift_slot_id)
-              : "off"
-          }
-          onValueChange={(value) => handleCellEdit(assignment, value)}
-          disabled={saving}
-        >
-          <SelectTrigger className="h-7 w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="off">休み</SelectItem>
-            {shiftSlots.map((slot) => (
-              <SelectItem key={slot.id} value={String(slot.id)}>
-                {slot.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
+    if (!assignment) return null;
 
-    if (!assignment || assignment.shift_slot_id === null) {
-      // Empty / off cell
-      return (
-        <div
-          className={`h-full w-full flex items-center justify-center text-xs text-gray-400 bg-gray-50 ${
-            assignment && !isPublished ? "cursor-pointer" : ""
-          }`}
-          onClick={() => {
-            if (assignment && !isPublished) {
-              setEditingCell(key);
-            }
-          }}
-        >
-          -
-        </div>
-      );
-    }
+    const slotId = assignment.shift_slot_id;
+    const slotName = getSlotName(slotId);
+    const isEmpty = slotId === null;
 
-    const slotIndex = slotIndexMap.get(assignment.shift_slot_id) ?? 0;
-    const colorClass = getSlotColor(slotIndex);
-    const slotName = getSlotName(assignment.shift_slot_id);
-
-    return (
+    const cellContent = isEmpty ? (
+      <div className="h-full w-full flex items-center justify-center text-xs text-gray-400 bg-gray-50">
+        -
+      </div>
+    ) : (
       <div
-        className={`h-full w-full flex items-center justify-center text-xs font-medium rounded ${colorClass} ${
-          assignment.is_manual_edit
-            ? "ring-2 ring-orange-400"
-            : ""
-        } ${!isPublished ? "cursor-pointer" : ""}`}
-        onClick={() => {
-          if (!isPublished) {
-            setEditingCell(key);
-          }
-        }}
-        title={
-          assignment.is_manual_edit ? `${slotName} (手動編集)` : slotName
-        }
+        className={`h-full w-full flex items-center justify-center text-xs font-medium rounded ${getSlotColor(slotIndexMap.get(slotId) ?? 0)} ${
+          assignment.is_manual_edit ? "ring-2 ring-orange-400" : ""
+        }`}
+        title={assignment.is_manual_edit ? `${slotName} (手動編集)` : slotName}
       >
         {slotName}
       </div>
+    );
+
+    if (isPublished) return cellContent;
+
+    return (
+      <Popover
+        open={openPopoverKey === key}
+        onOpenChange={(open) => setOpenPopoverKey(open ? key : null)}
+      >
+        <PopoverTrigger asChild>
+          <button
+            className={`group relative h-full w-full rounded transition-all hover:ring-2 hover:ring-blue-300 focus:outline-none ${
+              isPending ? "ring-2 ring-amber-400" : ""
+            }`}
+          >
+            {cellContent}
+            <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Pencil className="h-3 w-3 text-gray-400" />
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-1" align="start">
+          <div className="text-xs font-medium text-muted-foreground px-2 py-1 border-b mb-1">
+            {formatDate(date)} - {staff.name}
+          </div>
+          <button
+            className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-gray-100 transition-colors ${
+              slotId === null ? "bg-gray-100 font-medium" : ""
+            }`}
+            onClick={() => handleCellEdit(staff.id, date, assignment, "off")}
+          >
+            休み
+          </button>
+          {shiftSlots.map((slot) => (
+            <button
+              key={slot.id}
+              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-blue-50 hover:text-blue-700 transition-colors ${
+                slotId === slot.id ? "bg-blue-50 text-blue-700 font-medium" : ""
+              }`}
+              onClick={() => handleCellEdit(staff.id, date, assignment, String(slot.id))}
+            >
+              <div>{slot.name}</div>
+              <div className="text-xs text-muted-foreground">{getSlotTimeRange(slot.id)}</div>
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
     );
   }
 
@@ -203,47 +263,69 @@ export function ShiftCalendar({
   }
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full border-collapse">
-        <thead>
-          <tr>
-            <th className="sticky left-0 z-10 bg-white border-b border-r px-3 py-2 text-left text-sm font-semibold min-w-[120px]">
-              スタッフ
-            </th>
-            {dates.map((date) => {
-              const d = new Date(date + "T00:00:00");
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-              return (
-                <th
-                  key={date}
-                  className={`border-b border-r px-1 py-2 text-center text-xs font-medium min-w-[70px] ${
-                    isWeekend ? "bg-red-50 text-red-700" : "bg-gray-50"
-                  }`}
-                >
-                  {formatDate(date)}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {staffList.map((staff) => (
-            <tr key={staff.id} className="hover:bg-gray-50/50">
-              <td className="sticky left-0 z-10 bg-white border-b border-r px-3 py-1 text-sm font-medium whitespace-nowrap">
-                {staff.name}
-              </td>
-              {dates.map((date) => (
-                <td
-                  key={`${staff.id}-${date}`}
-                  className="border-b border-r p-0.5 h-9"
-                >
-                  {renderCell(staff, date)}
-                </td>
-              ))}
+    <div className="space-y-0">
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="min-w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-white border-b border-r px-3 py-2 text-left text-sm font-semibold min-w-[120px]">
+                スタッフ
+              </th>
+              {dates.map((date) => {
+                const d = new Date(date + "T00:00:00");
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                return (
+                  <th
+                    key={date}
+                    className={`border-b border-r px-1 py-2 text-center text-xs font-medium min-w-[70px] ${
+                      isWeekend ? "bg-red-50 text-red-700" : "bg-gray-50"
+                    }`}
+                  >
+                    {formatDate(date)}
+                  </th>
+                );
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {staffList.map((staff) => (
+              <tr key={staff.id} className="hover:bg-gray-50/50">
+                <td className="sticky left-0 z-10 bg-white border-b border-r px-3 py-1 text-sm font-medium whitespace-nowrap">
+                  {staff.name}
+                </td>
+                {dates.map((date) => (
+                  <td
+                    key={`${staff.id}-${date}`}
+                    className="border-b border-r p-0.5 h-9"
+                  >
+                    {renderCell(staff, date)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Floating save bar */}
+      {pendingEdits.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border rounded-lg shadow-lg px-6 py-3 flex items-center gap-4">
+          <span className="text-sm font-medium">
+            {pendingEdits.size}件の変更
+          </span>
+          <Button size="sm" onClick={handleSaveAll} disabled={saving}>
+            {saving ? "保存中..." : "保存"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDiscardAll}
+            disabled={saving}
+          >
+            取り消す
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

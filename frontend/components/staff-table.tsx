@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Loader2, Users } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type { Staff } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export function StaffTable() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -29,11 +32,21 @@ export function StaffTable() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
   const [formRole, setFormRole] = useState("");
   const [formMaxDays, setFormMaxDays] = useState(5);
+
+  // Validation
+  const nameError = formName.trim() === "" ? "名前は必須です" : null;
+  const maxDaysError =
+    formMaxDays < 1 || formMaxDays > 7 ? "1〜7の間で入力してください" : null;
+  const hasValidationError = nameError !== null || maxDaysError !== null;
 
   async function fetchStaff() {
     try {
@@ -70,10 +83,12 @@ export function StaffTable() {
   }
 
   async function handleSave() {
+    if (hasValidationError) return;
+    setSaving(true);
     try {
       const body = {
-        name: formName,
-        role: formRole,
+        name: formName.trim(),
+        role: formRole.trim(),
         max_days_per_week: formMaxDays,
       };
 
@@ -82,32 +97,35 @@ export function StaffTable() {
           method: "PUT",
           body: JSON.stringify(body),
         });
+        toast.success("スタッフを更新しました");
       } else {
         await apiFetch<Staff>("/api/staff", {
           method: "POST",
           body: JSON.stringify(body),
         });
+        toast.success("スタッフを追加しました");
       }
 
       setDialogOpen(false);
       await fetchStaff();
     } catch (e) {
       console.error(e);
-      alert("保存に失敗しました");
+      toast.error("保存に失敗しました");
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function handleDelete(staff: Staff) {
-    if (!window.confirm(`「${staff.name}」を削除してもよろしいですか？`)) {
-      return;
-    }
-
+  async function handleDelete() {
+    if (!deleteTarget) return;
     try {
-      await apiFetch(`/api/staff/${staff.id}`, { method: "DELETE" });
+      await apiFetch(`/api/staff/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success(`「${deleteTarget.name}」を削除しました`);
+      setDeleteTarget(null);
       await fetchStaff();
     } catch (e) {
       console.error(e);
-      alert("削除に失敗しました");
+      toast.error("削除に失敗しました");
     }
   }
 
@@ -126,24 +144,29 @@ export function StaffTable() {
           <Button onClick={openAddDialog}>追加</Button>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>名前</TableHead>
-              <TableHead>役割</TableHead>
-              <TableHead>最大勤務日数/週</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {staffList.length === 0 ? (
+        {staffList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground mb-1">
+              スタッフが登録されていません
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              シフトを作成するには、まずスタッフを追加してください。
+            </p>
+            <Button onClick={openAddDialog}>最初のスタッフを追加</Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  スタッフが登録されていません
-                </TableCell>
+                <TableHead>名前</TableHead>
+                <TableHead>役割</TableHead>
+                <TableHead>最大勤務日数/週</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
-            ) : (
-              staffList.map((staff) => (
+            </TableHeader>
+            <TableBody>
+              {staffList.map((staff) => (
                 <TableRow key={staff.id}>
                   <TableCell>{staff.name}</TableCell>
                   <TableCell>{staff.role}</TableCell>
@@ -159,16 +182,16 @@ export function StaffTable() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDelete(staff)}
+                      onClick={() => setDeleteTarget(staff)}
                     >
                       削除
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
@@ -189,6 +212,9 @@ export function StaffTable() {
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="例: 山田太郎"
                 />
+                {formName !== "" && nameError && (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">役割</label>
@@ -207,6 +233,9 @@ export function StaffTable() {
                   value={formMaxDays}
                   onChange={(e) => setFormMaxDays(Number(e.target.value))}
                 />
+                {maxDaysError && (
+                  <p className="text-xs text-destructive">{maxDaysError}</p>
+                )}
               </div>
             </div>
 
@@ -214,10 +243,27 @@ export function StaffTable() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 キャンセル
               </Button>
-              <Button onClick={handleSave}>保存</Button>
+              <Button
+                onClick={handleSave}
+                disabled={hasValidationError || saving}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+          title="スタッフの削除"
+          description={`「${deleteTarget?.name}」を削除してもよろしいですか？この操作は取り消せません。`}
+          variant="destructive"
+          onConfirm={handleDelete}
+        />
       </CardContent>
     </Card>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ClipboardList, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type { ShiftSlot, StaffingRequirement } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -42,11 +44,17 @@ export function StaffingRequirementsTable() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReq, setEditingReq] = useState<StaffingRequirement | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [formShiftSlotId, setFormShiftSlotId] = useState<string>("");
   const [formDayType, setFormDayType] = useState<string>("weekday");
   const [formMinCount, setFormMinCount] = useState(1);
+
+  // Validation
+  const minCountError =
+    formMinCount < 1 ? "1以上の値を入力してください" : null;
+  const hasValidationError = minCountError !== null;
 
   async function fetchData() {
     try {
@@ -92,6 +100,8 @@ export function StaffingRequirementsTable() {
   }
 
   async function handleSave() {
+    if (hasValidationError) return;
+    setSaving(true);
     try {
       const body = {
         shift_slot_id: Number(formShiftSlotId),
@@ -107,18 +117,22 @@ export function StaffingRequirementsTable() {
             body: JSON.stringify(body),
           }
         );
+        toast.success("必要人数を更新しました");
       } else {
         await apiFetch<StaffingRequirement>("/api/staffing-requirements", {
           method: "POST",
           body: JSON.stringify(body),
         });
+        toast.success("必要人数を追加しました");
       }
 
       setDialogOpen(false);
       await fetchData();
     } catch (e) {
       console.error(e);
-      alert("保存に失敗しました");
+      toast.error("保存に失敗しました");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -145,24 +159,31 @@ export function StaffingRequirementsTable() {
           </p>
         )}
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>シフト枠</TableHead>
-              <TableHead>日種別</TableHead>
-              <TableHead>最低人数</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {requirements.length === 0 ? (
+        {requirements.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground mb-1">
+              必要人数が設定されていません
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              各シフト枠に必要な最低人数を設定してください。
+            </p>
+            {shiftSlots.length > 0 && (
+              <Button onClick={openAddDialog}>最初の必要人数を設定</Button>
+            )}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  必要人数が設定されていません
-                </TableCell>
+                <TableHead>シフト枠</TableHead>
+                <TableHead>日種別</TableHead>
+                <TableHead>最低人数</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
-            ) : (
-              requirements.map((req) => (
+            </TableHeader>
+            <TableBody>
+              {requirements.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell>{getSlotName(req.shift_slot_id)}</TableCell>
                   <TableCell>
@@ -179,10 +200,10 @@ export function StaffingRequirementsTable() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
@@ -241,6 +262,9 @@ export function StaffingRequirementsTable() {
                   value={formMinCount}
                   onChange={(e) => setFormMinCount(Number(e.target.value))}
                 />
+                {minCountError && (
+                  <p className="text-xs text-destructive">{minCountError}</p>
+                )}
               </div>
             </div>
 
@@ -248,7 +272,13 @@ export function StaffingRequirementsTable() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 キャンセル
               </Button>
-              <Button onClick={handleSave}>保存</Button>
+              <Button
+                onClick={handleSave}
+                disabled={hasValidationError || saving}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

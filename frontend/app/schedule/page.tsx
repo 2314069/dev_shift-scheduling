@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type {
   Staff,
@@ -20,7 +22,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { ShiftCalendar } from "@/components/shift-calendar";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+
+function getNextMonthRange(): { start: string; end: string } {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const lastDay = new Date(
+    nextMonth.getFullYear(),
+    nextMonth.getMonth() + 1,
+    0
+  );
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { start: fmt(nextMonth), end: fmt(lastDay) };
+}
+
+function getThisMonthRange(): { start: string; end: string } {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { start: fmt(first), end: fmt(lastDay) };
+}
 
 export default function SchedulePage() {
   // Period management state
@@ -30,9 +56,10 @@ export default function SchedulePage() {
     null
   );
 
-  // New period form
-  const [newStartDate, setNewStartDate] = useState("");
-  const [newEndDate, setNewEndDate] = useState("");
+  // New period form - default to next month
+  const nextMonth = getNextMonthRange();
+  const [newStartDate, setNewStartDate] = useState(nextMonth.start);
+  const [newEndDate, setNewEndDate] = useState(nextMonth.end);
   const [creatingPeriod, setCreatingPeriod] = useState(false);
 
   // Schedule data
@@ -46,11 +73,8 @@ export default function SchedulePage() {
   const [optimizing, setOptimizing] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  // Messages
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  // Publish confirm dialog
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
 
   // Fetch all periods
   const fetchPeriods = useCallback(async () => {
@@ -60,7 +84,7 @@ export default function SchedulePage() {
       setPeriods(data);
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "スケジュール期間の取得に失敗しました" });
+      toast.error("スケジュール期間の取得に失敗しました");
     } finally {
       setLoadingPeriods(false);
     }
@@ -78,10 +102,7 @@ export default function SchedulePage() {
         setShiftSlots(slotsData);
       } catch (e) {
         console.error(e);
-        setMessage({
-          type: "error",
-          text: "マスタデータの取得に失敗しました",
-        });
+        toast.error("マスタデータの取得に失敗しました");
       }
     }
     fetchReferenceData();
@@ -100,7 +121,7 @@ export default function SchedulePage() {
       setAssignments(data.assignments);
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "スケジュールの取得に失敗しました" });
+      toast.error("スケジュールの取得に失敗しました");
     } finally {
       setLoadingSchedule(false);
     }
@@ -118,16 +139,15 @@ export default function SchedulePage() {
   // Create new period
   async function handleCreatePeriod() {
     if (!newStartDate || !newEndDate) {
-      setMessage({ type: "error", text: "開始日と終了日を入力してください" });
+      toast.error("開始日と終了日を入力してください");
       return;
     }
     if (newStartDate > newEndDate) {
-      setMessage({ type: "error", text: "開始日は終了日より前にしてください" });
+      toast.error("開始日は終了日より前にしてください");
       return;
     }
     try {
       setCreatingPeriod(true);
-      setMessage(null);
       const created = await apiFetch<SchedulePeriod>("/api/schedules", {
         method: "POST",
         body: JSON.stringify({
@@ -135,17 +155,25 @@ export default function SchedulePage() {
           end_date: newEndDate,
         }),
       });
-      setNewStartDate("");
-      setNewEndDate("");
+      const next = getNextMonthRange();
+      setNewStartDate(next.start);
+      setNewEndDate(next.end);
       await fetchPeriods();
       setSelectedPeriodId(String(created.id));
-      setMessage({ type: "success", text: "スケジュール期間を作成しました" });
+      toast.success("スケジュール期間を作成しました");
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "スケジュール期間の作成に失敗しました" });
+      toast.error("スケジュール期間の作成に失敗しました");
     } finally {
       setCreatingPeriod(false);
     }
+  }
+
+  function handleQuickSelect(type: "thisMonth" | "nextMonth") {
+    const range =
+      type === "thisMonth" ? getThisMonthRange() : getNextMonthRange();
+    setNewStartDate(range.start);
+    setNewEndDate(range.end);
   }
 
   // Run optimization
@@ -153,26 +181,19 @@ export default function SchedulePage() {
     if (!selectedPeriodId) return;
     try {
       setOptimizing(true);
-      setMessage(null);
       const result = await apiFetch<OptimizeResponse>(
         `/api/schedules/${selectedPeriodId}/optimize`,
         { method: "POST" }
       );
       if (result.status === "optimal") {
-        setMessage({
-          type: "success",
-          text: `最適化が完了しました: ${result.message}`,
-        });
+        toast.success(`最適化が完了しました: ${result.message}`);
         setAssignments(result.assignments);
       } else {
-        setMessage({
-          type: "error",
-          text: `最適化に失敗しました: ${result.message}`,
-        });
+        toast.error(`最適化に失敗しました: ${result.message}`);
       }
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "最適化の実行に失敗しました" });
+      toast.error("最適化の実行に失敗しました");
     } finally {
       setOptimizing(false);
     }
@@ -181,25 +202,21 @@ export default function SchedulePage() {
   // Publish
   async function handlePublish() {
     if (!selectedPeriodId) return;
-    if (!window.confirm("シフトを公開しますか？公開後は編集できなくなります。")) {
-      return;
-    }
     try {
       setPublishing(true);
-      setMessage(null);
+      setPublishConfirmOpen(false);
       const updated = await apiFetch<SchedulePeriod>(
         `/api/schedules/${selectedPeriodId}/publish`,
         { method: "PUT" }
       );
       setSelectedPeriod(updated);
-      // Update the period in the list
       setPeriods((prev) =>
         prev.map((p) => (p.id === updated.id ? updated : p))
       );
-      setMessage({ type: "success", text: "シフトを公開しました" });
+      toast.success("シフトを公開しました");
     } catch (e) {
       console.error(e);
-      setMessage({ type: "error", text: "公開に失敗しました" });
+      toast.error("公開に失敗しました");
     } finally {
       setPublishing(false);
     }
@@ -218,19 +235,6 @@ export default function SchedulePage() {
     <div className="container mx-auto py-8 space-y-6">
       <h1 className="text-2xl font-bold">シフト表</h1>
 
-      {/* Message display */}
-      {message && (
-        <div
-          className={`p-3 rounded-md text-sm ${
-            message.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
       {/* Period Management */}
       <Card>
         <CardHeader>
@@ -238,7 +242,7 @@ export default function SchedulePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Create new period */}
-          <div className="flex items-end gap-4">
+          <div className="flex items-end gap-4 flex-wrap">
             <div className="space-y-1">
               <label className="text-sm font-medium">開始日</label>
               <Input
@@ -255,8 +259,27 @@ export default function SchedulePage() {
                 onChange={(e) => setNewEndDate(e.target.value)}
               />
             </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickSelect("thisMonth")}
+              >
+                今月
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickSelect("nextMonth")}
+              >
+                来月
+              </Button>
+            </div>
             <Button onClick={handleCreatePeriod} disabled={creatingPeriod}>
-              {creatingPeriod ? "作成中..." : "期間を作成"}
+              {creatingPeriod && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              期間を作成
             </Button>
           </div>
 
@@ -290,15 +313,11 @@ export default function SchedulePage() {
           {/* Period status and actions */}
           {selectedPeriod && (
             <div className="flex items-center gap-4 pt-2">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  isDraft
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-green-100 text-green-800"
-                }`}
-              >
-                {isDraft ? "下書き" : "公開済み"}
-              </span>
+              {isDraft ? (
+                <Badge variant="secondary">下書き</Badge>
+              ) : (
+                <Badge>公開済み</Badge>
+              )}
 
               <Button
                 onClick={handleOptimize}
@@ -306,26 +325,7 @@ export default function SchedulePage() {
               >
                 {optimizing ? (
                   <span className="flex items-center gap-2">
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     最適化実行中...
                   </span>
                 ) : (
@@ -335,10 +335,13 @@ export default function SchedulePage() {
 
               <Button
                 variant="secondary"
-                onClick={handlePublish}
+                onClick={() => setPublishConfirmOpen(true)}
                 disabled={!isDraft || !hasAssignments || publishing}
               >
-                {publishing ? "公開中..." : "公開"}
+                {publishing && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                公開
               </Button>
             </div>
           )}
@@ -403,6 +406,15 @@ export default function SchedulePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Publish confirm dialog */}
+      <ConfirmDialog
+        open={publishConfirmOpen}
+        onOpenChange={setPublishConfirmOpen}
+        title="シフトの公開"
+        description="シフトを公開しますか？公開後は編集できなくなります。"
+        onConfirm={handlePublish}
+      />
     </div>
   );
 }

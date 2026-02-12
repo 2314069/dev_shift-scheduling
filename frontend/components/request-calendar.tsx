@@ -1,7 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { ShiftSlot, StaffRequest } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -64,13 +78,8 @@ export function RequestCalendar({
     }
   );
 
-  // Popover state
-  const [popoverDate, setPopoverDate] = useState<string | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<{
-    top: number;
-    left: number;
-  }>({ top: 0, left: 0 });
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const [openPopoverDate, setOpenPopoverDate] = useState<string | null>(null);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   // Sync with existingRequests when they change
   useEffect(() => {
@@ -84,30 +93,9 @@ export function RequestCalendar({
     setRequestMap(map);
   }, [existingRequests]);
 
-  // Close popover on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
-        setPopoverDate(null);
-      }
-    }
-    if (popoverDate) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [popoverDate]);
-
-  function handleDateClick(date: string, e: React.MouseEvent) {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPopoverPosition({
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
-    });
-    setPopoverDate(popoverDate === date ? null : date);
+  function updateMap(newMap: Map<string, RequestEntry>) {
+    setRequestMap(newMap);
+    onChange(newMap);
   }
 
   function handleSelectOption(
@@ -120,12 +108,39 @@ export function RequestCalendar({
     } else if (option === "unavailable") {
       newMap.set(date, { type: "unavailable", shift_slot_id: null });
     } else {
-      // option is a shift_slot_id
       newMap.set(date, { type: "preferred", shift_slot_id: option });
     }
-    setRequestMap(newMap);
-    onChange(newMap);
-    setPopoverDate(null);
+    updateMap(newMap);
+    setOpenPopoverDate(null);
+  }
+
+  function handleClearAll() {
+    updateMap(new Map());
+    setClearConfirmOpen(false);
+  }
+
+  function handleBulkSetWeekdays(slotId: number) {
+    const newMap = new Map(requestMap);
+    for (const date of dates) {
+      const d = new Date(date + "T00:00:00");
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) {
+        newMap.set(date, { type: "preferred", shift_slot_id: slotId });
+      }
+    }
+    updateMap(newMap);
+  }
+
+  function handleBulkSetWeekendsUnavailable() {
+    const newMap = new Map(requestMap);
+    for (const date of dates) {
+      const d = new Date(date + "T00:00:00");
+      const day = d.getDay();
+      if (day === 0 || day === 6) {
+        newMap.set(date, { type: "unavailable", shift_slot_id: null });
+      }
+    }
+    updateMap(newMap);
   }
 
   function getSlotName(slotId: number): string {
@@ -140,7 +155,6 @@ export function RequestCalendar({
     if (entry.type === "unavailable") {
       return "bg-red-100 border-red-300 text-red-800";
     }
-    // preferred
     return "bg-blue-100 border-blue-300 text-blue-800";
   }
 
@@ -151,7 +165,6 @@ export function RequestCalendar({
     if (entry.type === "unavailable") {
       return "不可";
     }
-    // preferred with slot
     if (entry.shift_slot_id !== null) {
       return `希望: ${getSlotName(entry.shift_slot_id)}`;
     }
@@ -166,7 +179,6 @@ export function RequestCalendar({
   const weeks: string[][] = [];
   let currentWeek: string[] = [];
 
-  // Fill in blank days for the first week
   const firstDay = new Date(dates[0] + "T00:00:00").getDay();
   for (let i = 0; i < firstDay; i++) {
     currentWeek.push("");
@@ -180,7 +192,6 @@ export function RequestCalendar({
     }
   }
   if (currentWeek.length > 0) {
-    // Pad remaining
     while (currentWeek.length < 7) {
       currentWeek.push("");
     }
@@ -188,7 +199,41 @@ export function RequestCalendar({
   }
 
   return (
-    <div className="relative">
+    <div className="space-y-4">
+      {/* Bulk actions toolbar */}
+      <div className="flex flex-wrap gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              一括設定
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {shiftSlots.map((slot) => (
+              <DropdownMenuItem
+                key={slot.id}
+                onClick={() => handleBulkSetWeekdays(slot.id)}
+              >
+                全平日を「{slot.name}」に設定
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleBulkSetWeekendsUnavailable}>
+              全休日を出勤不可に設定
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setClearConfirmOpen(true)}
+          disabled={requestMap.size === 0}
+        >
+          すべてクリア
+        </Button>
+      </div>
+
       {/* Calendar grid header */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAY_NAMES.map((name, i) => (
@@ -217,65 +262,70 @@ export function RequestCalendar({
           const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
           return (
-            <div
+            <Popover
               key={date}
-              className={`h-20 border rounded-md p-1.5 cursor-pointer transition-colors hover:ring-2 hover:ring-blue-400 ${cellStyle}`}
-              onClick={(e) => handleDateClick(date, e)}
+              open={openPopoverDate === date}
+              onOpenChange={(open) =>
+                setOpenPopoverDate(open ? date : null)
+              }
             >
-              <div
-                className={`text-xs font-medium ${
-                  isWeekend ? "text-red-600" : ""
-                }`}
-              >
-                {formatDate(date)}
-              </div>
-              <div className="text-xs mt-1 font-medium">{cellLabel}</div>
-            </div>
+              <PopoverTrigger asChild>
+                <button
+                  className={`h-20 w-full border rounded-md p-1.5 cursor-pointer transition-colors hover:ring-2 hover:ring-blue-400 text-left ${cellStyle}`}
+                >
+                  <div
+                    className={`text-xs font-medium ${
+                      isWeekend ? "text-red-600" : ""
+                    }`}
+                  >
+                    {formatDate(date)}
+                  </div>
+                  <div className="text-xs mt-1 font-medium">{cellLabel}</div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-1" align="start">
+                <div className="text-xs font-medium text-muted-foreground px-2 py-1 border-b mb-1">
+                  {formatDate(date)}
+                </div>
+                {shiftSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-blue-50 hover:text-blue-700 transition-colors ${
+                      entry?.type === "preferred" && entry?.shift_slot_id === slot.id
+                        ? "bg-blue-50 text-blue-700 font-medium"
+                        : ""
+                    }`}
+                    onClick={() => handleSelectOption(date, slot.id)}
+                  >
+                    希望: {slot.name}
+                  </button>
+                ))}
+                <button
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-red-50 hover:text-red-700 transition-colors ${
+                    entry?.type === "unavailable"
+                      ? "bg-red-50 text-red-700 font-medium"
+                      : ""
+                  }`}
+                  onClick={() => handleSelectOption(date, "unavailable")}
+                >
+                  出勤不可
+                </button>
+                <div className="border-t mt-1 pt-1">
+                  <button
+                    className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                    onClick={() => handleSelectOption(date, "clear")}
+                  >
+                    クリア
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
           );
         })}
       </div>
 
-      {/* Popover */}
-      {popoverDate && (
-        <div
-          ref={popoverRef}
-          className="fixed z-50 bg-white border rounded-lg shadow-lg p-2 min-w-[180px]"
-          style={{
-            top: popoverPosition.top,
-            left: popoverPosition.left,
-          }}
-        >
-          <div className="text-xs font-medium text-gray-500 px-2 py-1 border-b mb-1">
-            {formatDate(popoverDate)}
-          </div>
-          {shiftSlots.map((slot) => (
-            <button
-              key={slot.id}
-              className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-blue-50 hover:text-blue-700 transition-colors"
-              onClick={() => handleSelectOption(popoverDate, slot.id)}
-            >
-              希望: {slot.name}
-            </button>
-          ))}
-          <button
-            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-red-50 hover:text-red-700 transition-colors"
-            onClick={() => handleSelectOption(popoverDate, "unavailable")}
-          >
-            出勤不可
-          </button>
-          <div className="border-t mt-1 pt-1">
-            <button
-              className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-gray-100 text-gray-500 transition-colors"
-              onClick={() => handleSelectOption(popoverDate, "clear")}
-            >
-              クリア
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-3 text-xs">
+      <div className="flex flex-wrap gap-3 text-xs">
         <span className="font-medium text-gray-600">凡例:</span>
         <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800">
           希望
@@ -287,6 +337,16 @@ export function RequestCalendar({
           未入力
         </span>
       </div>
+
+      {/* Clear all confirm dialog */}
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="すべてクリア"
+        description="すべての希望入力をクリアします。よろしいですか？"
+        variant="destructive"
+        onConfirm={handleClearAll}
+      />
     </div>
   );
 }
