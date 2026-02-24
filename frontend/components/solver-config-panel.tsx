@@ -28,9 +28,9 @@ interface BasicSetting {
 }
 
 const BASIC_SETTINGS: BasicSetting[] = [
-  { key: "max_consecutive_days", label: "連勤上限日数", min: 1, max: 14 },
-  { key: "time_limit", label: "ソルバー制限時間（秒）", min: 5, max: 300 },
-  { key: "min_shift_interval_hours", label: "シフト間インターバル（時間）", min: 0, max: 24 },
+  { key: "max_consecutive_days", label: "最大連続勤務日数", min: 1, max: 14 },
+  { key: "time_limit", label: "最適化の計算時間上限（秒）", min: 5, max: 300 },
+  { key: "min_shift_interval_hours", label: "連続シフト間の最低休憩時間（時間）", min: 0, max: 24 },
 ];
 
 interface OptimizationFeature {
@@ -74,8 +74,8 @@ const OPTIMIZATION_FEATURES: OptimizationFeature[] = [
   {
     enableKey: "enable_soft_staffing",
     weightKey: "weight_soft_staffing",
-    label: "必要人数のソフト制約化",
-    description: "必要人数をハード制約からソフト制約に変更します",
+    label: "必要人数を「目標」として扱う",
+    description: "必要人数を必須条件ではなく「できれば満たしたい目標」として扱います。解が見つからない場合に有効です",
     min: 1,
     max: 20,
     step: 1,
@@ -91,18 +91,18 @@ interface ToggleConstraint {
 const TOGGLE_CONSTRAINTS: ToggleConstraint[] = [
   {
     key: "enable_shift_interval",
-    label: "シフト間インターバル制約",
-    description: "連続するシフト間に最低休息時間を確保します",
+    label: "連続シフト間の休憩を保証する",
+    description: "シフトとシフトの間に、上で設定した最低休憩時間を空けるよう制約します",
   },
   {
     key: "enable_role_staffing",
-    label: "ロール別必要人数",
-    description: "役職ごとの最低配置人数を制約に追加します",
+    label: "役割ごとの最低人数を守る",
+    description: "「正社員」「パート」などの役割ごとに、必要最低人数を満たすようシフトを作成します",
   },
   {
     key: "enable_min_days_per_week",
-    label: "最低勤務日数/週",
-    description: "各スタッフの週あたり最低勤務日数を保証します",
+    label: "スタッフの週最低勤務日数を守る",
+    description: "各スタッフに設定した「週の最低勤務日数」を下回らないようにシフトを作成します",
   },
 ];
 
@@ -175,11 +175,14 @@ export function SolverConfigPanel() {
 
   return (
     <div className="space-y-6">
-      {/* 基本設定 (#1 #4: onBlur で API 送信、配列でレンダリング) */}
+      {/* 基本設定 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          基本設定
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            基本設定
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">勤務ルールの基本的な数値を設定します。</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {BASIC_SETTINGS.map((setting) => (
             <div key={setting.key} className="space-y-1.5">
@@ -209,9 +212,12 @@ export function SolverConfigPanel() {
 
       {/* 最適化機能 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          最適化機能
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            最適化機能
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">オンにすると、その条件を「できるだけ満たすように」シフトを最適化します。重みが大きいほど優先されます。</p>
+        </div>
         <div className="space-y-4">
           {OPTIMIZATION_FEATURES.map((feature) => {
             const enabled = config[feature.enableKey];
@@ -266,9 +272,12 @@ export function SolverConfigPanel() {
 
       {/* 追加制約 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          追加制約
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            追加制約
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">オンにすると、その条件を必ず守るようにシフトを作成します。</p>
+        </div>
         <div className="space-y-3">
           {TOGGLE_CONSTRAINTS.map((constraint) => (
             <div
