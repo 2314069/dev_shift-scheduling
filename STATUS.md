@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-24 (Vercel + Railway デプロイ設定追加) | ブランチ: main
+> 最終更新: 2026-02-24 (シフトカレンダー機能拡張) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -30,7 +30,7 @@
 | シフト表画面（最適化・手動編集・公開） | `app/schedule/page.tsx` | ✅ 完了 |
 | 希望入力画面 | `app/staff/page.tsx` | ✅ 完了 |
 | ナビゲーションレイアウト | `app/layout.tsx` | ✅ 完了 |
-| シフト表グリッド | `components/shift-calendar.tsx` | ✅ 完了 |
+| シフト表グリッド（希望表示・合計列・CSVエクスポート） | `components/shift-calendar.tsx` | ✅ 完了 |
 | 希望入力カレンダー | `components/request-calendar.tsx` | ✅ 完了 |
 | スタッフ管理テーブル | `components/staff-table.tsx` | ✅ 完了 |
 | 最適化診断パネル | `components/diagnostics-panel.tsx` | ✅ 完了 |
@@ -53,11 +53,11 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| `d330311` | feat: add deployment config for Vercel + Railway |
-| `c561d1c` | refactor: address code review findings across solver config and shift calendar |
-| `e86f6cc` | feat: add solver config UI and paint mode for shift calendar |
-| `5bbef70` | test: add frontend testing infrastructure and component tests |
-| `9949bb1` | feat: add infeasibility diagnostics for optimizer |
+| `0cfc619` | feat: add request indicators, work-day totals, and CSV export to shift calendar |
+| `936842e` | chore: update uv.lock for highspy and numpy dependencies |
+| `3f2e54a` | feat: use HiGHS IIS for accurate infeasibility diagnosis |
+| `00a184b` | feat: add demo data seed script and fix CBC solver timeout |
+| `0dbac20` | feat: improve settings page readability for beginners |
 
 ## TODO / 次のフェーズ候補
 
@@ -77,7 +77,7 @@ cd frontend && npm run test
 - [x] PostgreSQL 対応（Vercel + Railway デプロイ設定）
 - [ ] 認証・ログイン機能
 - [ ] 非同期ジョブ化（大規模対応）
-- [ ] シフト表の CSV/PDF エクスポート
+- [x] シフト表の CSV エクスポート
 
 ## 既知の問題・メモ
 
