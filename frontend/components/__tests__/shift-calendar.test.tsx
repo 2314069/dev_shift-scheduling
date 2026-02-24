@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ShiftCalendar } from "@/components/shift-calendar";
-import { makeStaff, makeShiftSlot, makeAssignment } from "@/test/helpers/fixtures";
+import { makeStaff, makeShiftSlot, makeAssignment, resetFixtureIds } from "@/test/helpers/fixtures";
 import { mockApiFetch } from "@/test/helpers/mock-api";
 import type { Staff, ShiftSlot, ScheduleAssignment } from "@/lib/types";
 
@@ -37,6 +37,7 @@ const defaultProps = {
 
 beforeEach(() => {
   mockApiFetch.mockReset();
+  resetFixtureIds();
 });
 
 describe("ShiftCalendar paint mode", () => {
@@ -105,9 +106,8 @@ describe("ShiftCalendar paint mode", () => {
     const offButton = screen.getByRole("button", { name: /0.*休み/ });
     fireEvent.click(offButton);
 
-    // The cell for staff 1, date 2026-03-01 currently has "早番"
-    // In paint mode, cells have cursor-crosshair and respond to mousedown
-    const paintCells = document.querySelectorAll(".cursor-crosshair");
+    // In paint mode, cells get data-testid="paint-cell"
+    const paintCells = screen.getAllByTestId("paint-cell");
     expect(paintCells.length).toBeGreaterThan(0);
 
     // Mousedown on the first paint cell

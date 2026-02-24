@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Pencil, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -53,6 +53,11 @@ interface PendingEdit {
   newSlotId: number | null;
 }
 
+// --- #9: Discriminated union for paint mode ---
+type PaintMode =
+  | { active: false }
+  | { active: true; slotId: number | null };
+
 interface ShiftCalendarProps {
   periodId: number;
   startDate: string;
@@ -79,13 +84,9 @@ export function ShiftCalendar({
   const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
   const [saving, setSaving] = useState(false);
 
-  // Paint mode state:
-  // undefined = paint mode OFF, null = painting "休み", number = painting a shift slot ID
-  const [paintSlotId, setPaintSlotId] = useState<number | null | undefined>(undefined);
+  const [paintMode, setPaintMode] = useState<PaintMode>({ active: false });
   const [isDragging, setIsDragging] = useState(false);
   const dragStaffIdRef = useRef<number | null>(null);
-
-  const isPaintMode = paintSlotId !== undefined;
 
   // Sync localAssignments when assignments prop changes (after server fetch)
   useEffect(() => {
@@ -93,22 +94,36 @@ export function ShiftCalendar({
     setPendingEdits(new Map());
   }, [assignments]);
 
-  // Keyboard shortcuts for paint mode
+  // Keyboard shortcuts for paint mode (#6: skip input/textarea elements)
   useEffect(() => {
     if (isPublished) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setPaintSlotId(undefined);
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
         return;
       }
-      // Number keys: 0 = 休み toggle, 1-N = slot toggle
+      if (e.key === "Escape") {
+        setPaintMode({ active: false });
+        return;
+      }
       if (e.key >= "0" && e.key <= "9") {
         const num = parseInt(e.key, 10);
         if (num === 0) {
-          setPaintSlotId((prev) => (prev === null ? undefined : null));
+          setPaintMode((prev) =>
+            prev.active && prev.slotId === null
+              ? { active: false }
+              : { active: true, slotId: null }
+          );
         } else if (num <= shiftSlots.length) {
           const slotId = shiftSlots[num - 1].id;
-          setPaintSlotId((prev) => (prev === slotId ? undefined : slotId));
+          setPaintMode((prev) =>
+            prev.active && prev.slotId === slotId
+              ? { active: false }
+              : { active: true, slotId }
+          );
         }
       }
     }
@@ -128,17 +143,23 @@ export function ShiftCalendar({
 
   const dates = getDatesInRange(startDate, endDate);
 
-  // Build a lookup map: `${staffId}-${date}` -> assignment
-  const assignmentMap = new Map<string, ScheduleAssignment>();
-  for (const a of localAssignments) {
-    assignmentMap.set(`${a.staff_id}-${a.date}`, a);
-  }
+  // #2: Memoize assignmentMap to avoid stale closures and unnecessary recreations
+  const assignmentMap = useMemo(() => {
+    const map = new Map<string, ScheduleAssignment>();
+    for (const a of localAssignments) {
+      map.set(`${a.staff_id}-${a.date}`, a);
+    }
+    return map;
+  }, [localAssignments]);
 
   // Build slot index map for colors
-  const slotIndexMap = new Map<number, number>();
-  shiftSlots.forEach((slot, index) => {
-    slotIndexMap.set(slot.id, index);
-  });
+  const slotIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+    shiftSlots.forEach((slot, index) => {
+      map.set(slot.id, index);
+    });
+    return map;
+  }, [shiftSlots]);
 
   function getSlotName(slotId: number | null): string {
     if (slotId === null) return "";
@@ -190,40 +211,54 @@ export function ShiftCalendar({
   );
 
   function handlePaintCellDown(staffId: number, date: string) {
-    if (!isPaintMode) return;
+    if (!paintMode.active) return;
     setIsDragging(true);
     dragStaffIdRef.current = staffId;
-    applyEdit(staffId, date, paintSlotId);
+    applyEdit(staffId, date, paintMode.slotId);
   }
 
   function handlePaintCellEnter(staffId: number, date: string) {
-    if (!isDragging || !isPaintMode) return;
-    // Only paint within the same staff row
+    if (!isDragging || !paintMode.active) return;
     if (dragStaffIdRef.current !== staffId) return;
-    applyEdit(staffId, date, paintSlotId);
+    applyEdit(staffId, date, paintMode.slotId);
   }
 
+  // #10: Partial failure handling — keep failed edits in pendingEdits
   async function handleSaveAll() {
     if (pendingEdits.size === 0) return;
     setSaving(true);
     try {
+      const editEntries = Array.from(pendingEdits.entries());
       const results = await Promise.allSettled(
-        Array.from(pendingEdits.values()).map((edit) =>
+        editEntries.map(([, edit]) =>
           apiFetch(`/api/schedules/${periodId}/assignments/${edit.assignmentId}`, {
             method: "PUT",
             body: JSON.stringify({
               shift_slot_id: edit.newSlotId,
-              is_manual_edit: true,
             }),
           })
         )
       );
 
-      const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed > 0) {
-        toast.error(`${failed}件の更新に失敗しました`);
+      const failedKeys: string[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "rejected") failedKeys.push(editEntries[i][0]);
+      });
+
+      if (failedKeys.length > 0) {
+        // Keep only the failed edits
+        setPendingEdits((prev) => {
+          const next = new Map<string, PendingEdit>();
+          for (const key of failedKeys) {
+            const edit = prev.get(key);
+            if (edit) next.set(key, edit);
+          }
+          return next;
+        });
+        toast.error(`${failedKeys.length}件の更新に失敗しました。再度保存してください`);
       } else {
-        toast.success(`${pendingEdits.size}件の変更を保存しました`);
+        toast.success(`${editEntries.length}件の変更を保存しました`);
+        setPendingEdits(new Map());
       }
 
       onAssignmentUpdated();
@@ -267,10 +302,11 @@ export function ShiftCalendar({
 
     if (isPublished) return cellContent;
 
-    // Paint mode: click/drag to apply
-    if (isPaintMode) {
+    // Paint mode: click/drag to apply (#7: data-testid for stable test queries)
+    if (paintMode.active) {
       return (
         <div
+          data-testid="paint-cell"
           className={`h-full w-full cursor-crosshair rounded transition-all hover:ring-2 hover:ring-blue-300 ${
             isPending ? "ring-2 ring-amber-400" : ""
           }`}
@@ -345,7 +381,7 @@ export function ShiftCalendar({
   return (
     <div
       className="space-y-0"
-      style={isPaintMode ? { userSelect: "none" } : undefined}
+      style={paintMode.active ? { userSelect: "none" } : undefined}
     >
       {/* Paint mode toolbar */}
       {!isPublished && (
@@ -356,8 +392,14 @@ export function ShiftCalendar({
           </span>
           <Button
             size="sm"
-            variant={paintSlotId === null ? "default" : "outline"}
-            onClick={() => setPaintSlotId(paintSlotId === null ? undefined : null)}
+            variant={paintMode.active && paintMode.slotId === null ? "default" : "outline"}
+            onClick={() =>
+              setPaintMode((prev) =>
+                prev.active && prev.slotId === null
+                  ? { active: false }
+                  : { active: true, slotId: null }
+              )
+            }
             className="h-7 text-xs"
           >
             <span className="mr-1 text-muted-foreground font-mono">0</span>
@@ -367,9 +409,13 @@ export function ShiftCalendar({
             <Button
               key={slot.id}
               size="sm"
-              variant={paintSlotId === slot.id ? "default" : "outline"}
+              variant={paintMode.active && paintMode.slotId === slot.id ? "default" : "outline"}
               onClick={() =>
-                setPaintSlotId(paintSlotId === slot.id ? undefined : slot.id)
+                setPaintMode((prev) =>
+                  prev.active && prev.slotId === slot.id
+                    ? { active: false }
+                    : { active: true, slotId: slot.id }
+                )
               }
               className="h-7 text-xs"
             >
@@ -377,7 +423,7 @@ export function ShiftCalendar({
               {slot.name}
             </Button>
           ))}
-          {isPaintMode && (
+          {paintMode.active && (
             <span className="text-xs text-muted-foreground ml-2">
               (Escで解除)
             </span>

@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockApiFetch } from "@/test/helpers/mock-api";
-import { makeSolverConfig } from "@/test/helpers/fixtures";
+import { makeSolverConfig, resetFixtureIds } from "@/test/helpers/fixtures";
 import { SolverConfigPanel } from "@/components/solver-config-panel";
 
 beforeEach(() => {
   mockApiFetch.mockReset();
+  resetFixtureIds();
 });
 
 describe("SolverConfigPanel", () => {
@@ -109,8 +110,8 @@ describe("SolverConfigPanel", () => {
 
     // Weight value should be displayed
     expect(screen.getByText("3.0")).toBeInTheDocument();
-    // Slider element should be present (data-slot="slider")
-    expect(document.querySelector('[data-slot="slider"]')).toBeInTheDocument();
+    // Slider element should be present (via aria-label)
+    expect(screen.getByLabelText("希望シフト反映の重み")).toBeInTheDocument();
   });
 
   it("shows error state and retry button on fetch failure", async () => {

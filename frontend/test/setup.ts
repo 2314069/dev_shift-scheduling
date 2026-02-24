@@ -35,6 +35,7 @@ Object.defineProperty(window, "matchMedia", {
 
 // Mock ResizeObserver (required by Radix Popover/Select/Slider)
 class MockResizeObserver {
+  constructor(_callback: ResizeObserverCallback) {}
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();

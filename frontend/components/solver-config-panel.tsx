@@ -11,9 +11,31 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
+// --- 型安全なキー制約 (#5) ---
+type BooleanKeys<T> = {
+  [K in keyof T]: T[K] extends boolean ? K : never;
+}[keyof T];
+type NumberKeys<T> = {
+  [K in keyof T]: T[K] extends number ? K : never;
+}[keyof T];
+
+// --- データ駆動定義 (#4: 基本設定も配列化) ---
+interface BasicSetting {
+  key: NumberKeys<SolverConfig>;
+  label: string;
+  min: number;
+  max: number;
+}
+
+const BASIC_SETTINGS: BasicSetting[] = [
+  { key: "max_consecutive_days", label: "連勤上限日数", min: 1, max: 14 },
+  { key: "time_limit", label: "ソルバー制限時間（秒）", min: 5, max: 300 },
+  { key: "min_shift_interval_hours", label: "シフト間インターバル（時間）", min: 0, max: 24 },
+];
+
 interface OptimizationFeature {
-  enableKey: keyof SolverConfig;
-  weightKey: keyof SolverConfig;
+  enableKey: BooleanKeys<SolverConfig>;
+  weightKey: NumberKeys<SolverConfig>;
   label: string;
   description: string;
   min: number;
@@ -61,7 +83,7 @@ const OPTIMIZATION_FEATURES: OptimizationFeature[] = [
 ];
 
 interface ToggleConstraint {
-  key: keyof SolverConfig;
+  key: BooleanKeys<SolverConfig>;
   label: string;
   description: string;
 }
@@ -110,7 +132,6 @@ export function SolverConfigPanel() {
   async function updateConfig(updates: Partial<SolverConfig>) {
     if (!config) return;
     const previous = config;
-    // Optimistic update
     setConfig({ ...config, ...updates });
     try {
       const updated = await apiFetch<SolverConfig>("/api/solver-config", {
@@ -154,57 +175,35 @@ export function SolverConfigPanel() {
 
   return (
     <div className="space-y-6">
-      {/* 基本設定 */}
+      {/* 基本設定 (#1 #4: onBlur で API 送信、配列でレンダリング) */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           基本設定
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">連勤上限日数</label>
-            <Input
-              type="number"
-              min={1}
-              max={14}
-              value={config.max_consecutive_days}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v) && v >= 1 && v <= 14) {
-                  updateConfig({ max_consecutive_days: v });
-                }
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">ソルバー制限時間（秒）</label>
-            <Input
-              type="number"
-              min={5}
-              max={300}
-              value={config.time_limit}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v) && v >= 5 && v <= 300) {
-                  updateConfig({ time_limit: v });
-                }
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">シフト間インターバル（時間）</label>
-            <Input
-              type="number"
-              min={0}
-              max={24}
-              value={config.min_shift_interval_hours}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v) && v >= 0 && v <= 24) {
-                  updateConfig({ min_shift_interval_hours: v });
-                }
-              }}
-            />
-          </div>
+          {BASIC_SETTINGS.map((setting) => (
+            <div key={setting.key} className="space-y-1.5">
+              <label className="text-sm font-medium">{setting.label}</label>
+              <Input
+                type="number"
+                min={setting.min}
+                max={setting.max}
+                value={config[setting.key]}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= setting.min && v <= setting.max) {
+                    setConfig({ ...config, [setting.key]: v });
+                  }
+                }}
+                onBlur={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= setting.min && v <= setting.max) {
+                    updateConfig({ [setting.key]: v });
+                  }
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
@@ -215,8 +214,8 @@ export function SolverConfigPanel() {
         </h3>
         <div className="space-y-4">
           {OPTIMIZATION_FEATURES.map((feature) => {
-            const enabled = config[feature.enableKey] as boolean;
-            const weight = config[feature.weightKey] as number;
+            const enabled = config[feature.enableKey];
+            const weight = config[feature.weightKey];
             return (
               <div
                 key={feature.enableKey}
@@ -283,7 +282,7 @@ export function SolverConfigPanel() {
                 </div>
               </div>
               <Switch
-                checked={config[constraint.key] as boolean}
+                checked={config[constraint.key]}
                 onCheckedChange={(checked) =>
                   updateConfig({ [constraint.key]: checked })
                 }
