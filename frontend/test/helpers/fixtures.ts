@@ -17,6 +17,7 @@ export function makeStaff(overrides?: Partial<Staff>): Staff {
     name: `スタッフ${id}`,
     role: "正社員",
     max_days_per_week: 5,
+    min_days_per_week: 0,
     ...overrides,
   };
 }

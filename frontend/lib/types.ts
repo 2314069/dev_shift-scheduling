@@ -3,6 +3,7 @@ export interface Staff {
   name: string;
   role: string;
   max_days_per_week: number;
+  min_days_per_week: number;
 }
 
 export interface ShiftSlot {

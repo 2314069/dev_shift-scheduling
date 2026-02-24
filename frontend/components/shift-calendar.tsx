@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Pencil, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
-import type { Staff, ShiftSlot, ScheduleAssignment } from "@/lib/types";
+import type { Staff, ShiftSlot, ScheduleAssignment, StaffingRequirement, StaffRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -65,6 +65,8 @@ interface ShiftCalendarProps {
   staffList: Staff[];
   shiftSlots: ShiftSlot[];
   assignments: ScheduleAssignment[];
+  requirements: StaffingRequirement[];
+  staffRequests: StaffRequest[];
   isPublished: boolean;
   onAssignmentUpdated: () => void;
 }
@@ -76,6 +78,8 @@ export function ShiftCalendar({
   staffList,
   shiftSlots,
   assignments,
+  requirements,
+  staffRequests,
   isPublished,
   onAssignmentUpdated,
 }: ShiftCalendarProps) {
@@ -160,6 +164,90 @@ export function ShiftCalendar({
     });
     return map;
   }, [shiftSlots]);
+
+  // 必要人数マップ: "dayType-slotId" -> minCount
+  const requirementMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of requirements) {
+      map.set(`${r.day_type}-${r.shift_slot_id}`, r.min_count);
+    }
+    return map;
+  }, [requirements]);
+
+  // 配置済み人数マップ: "date-slotId" -> count
+  const actualCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of localAssignments) {
+      if (a.shift_slot_id !== null) {
+        const key = `${a.date}-${a.shift_slot_id}`;
+        map.set(key, (map.get(key) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [localAssignments]);
+
+  // 希望マップ: "staffId-date" -> StaffRequest
+  const requestMap = useMemo(() => {
+    const map = new Map<string, StaffRequest>();
+    for (const r of staffRequests) {
+      map.set(`${r.staff_id}-${r.date}`, r);
+    }
+    return map;
+  }, [staffRequests]);
+
+  // 期間合計勤務日数: staffId -> count
+  const totalWorkDays = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const a of localAssignments) {
+      if (a.shift_slot_id !== null) {
+        map.set(a.staff_id, (map.get(a.staff_id) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [localAssignments]);
+
+  // 週ごとの勤務日数: staffId -> 各週の勤務日数配列
+  const weeklyWorkDays = useMemo(() => {
+    const map = new Map<number, number[]>();
+    if (dates.length === 0) return map;
+
+    // 月曜始まりで週を分割
+    const weeks: string[][] = [];
+    let currentWeek: string[] = [];
+    for (const date of dates) {
+      const d = new Date(date + "T00:00:00");
+      // 月曜日 (1) に新しい週を開始（最初の日は無条件で週を作る）
+      if (d.getDay() === 1 && currentWeek.length > 0) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+      currentWeek.push(date);
+    }
+    if (currentWeek.length > 0) weeks.push(currentWeek);
+
+    for (const staff of staffList) {
+      const weekCounts = weeks.map((week) =>
+        week.filter((date) => {
+          const a = assignmentMap.get(`${staff.id}-${date}`);
+          return a?.shift_slot_id !== null && a?.shift_slot_id !== undefined;
+        }).length
+      );
+      map.set(staff.id, weekCounts);
+    }
+    return map;
+  }, [localAssignments, assignmentMap, staffList, dates]);
+
+  function getRequiredCount(date: string, slotId: number): number {
+    const d = new Date(date + "T00:00:00");
+    const dayType = d.getDay() === 0 || d.getDay() === 6 ? "weekend" : "weekday";
+    return requirementMap.get(`${dayType}-${slotId}`) ?? 0;
+  }
+
+  function isWorkingDay(date: string): boolean {
+    const d = new Date(date + "T00:00:00");
+    const dayType = d.getDay() === 0 || d.getDay() === 6 ? "weekend" : "weekday";
+    return requirements.some((r) => r.day_type === dayType && r.min_count > 0);
+  }
 
   function getSlotName(slotId: number | null): string {
     if (slotId === null) return "";
@@ -274,6 +362,29 @@ export function ShiftCalendar({
     setPendingEdits(new Map());
   }
 
+  function handleExportCSV() {
+    const headers = ["スタッフ", ...dates.map((d) => formatDate(d)), "合計"];
+    const rows = staffList.map((staff) => {
+      const cells = dates.map((date) => {
+        const a = assignmentMap.get(`${staff.id}-${date}`);
+        if (!a || a.shift_slot_id === null) return "休み";
+        return getSlotName(a.shift_slot_id);
+      });
+      const total = `${totalWorkDays.get(staff.id) ?? 0}日`;
+      return [staff.name, ...cells, total];
+    });
+    const csv = [headers, ...rows]
+      .map((row) => row.map((c) => `"${c}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `シフト表_${startDate}_${endDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function renderCell(staff: Staff, date: string) {
     const key = `${staff.id}-${date}`;
     const assignment = assignmentMap.get(key);
@@ -285,18 +396,45 @@ export function ShiftCalendar({
     const slotName = getSlotName(slotId);
     const isEmpty = slotId === null;
 
+    // 希望インジケーター
+    const request = requestMap.get(key);
+    let indicator: { icon: string; color: string } | null = null;
+    if (request) {
+      if (request.type === "unavailable") {
+        indicator = slotId === null
+          ? { icon: "●", color: "text-green-400" }
+          : { icon: "✕", color: "text-red-500" };
+      } else {
+        // preferred: shift_slot_id === null means any shift is OK
+        const matches = request.shift_slot_id === null
+          ? slotId !== null
+          : slotId === request.shift_slot_id;
+        indicator = { icon: "★", color: matches ? "text-green-500" : "text-orange-400" };
+      }
+    }
+
     const cellContent = isEmpty ? (
-      <div className="h-full w-full flex items-center justify-center text-xs text-gray-400 bg-gray-50">
+      <div className="relative h-full w-full flex items-center justify-center text-xs text-gray-400 bg-gray-50">
         -
+        {indicator && (
+          <span className={`absolute top-0 right-0.5 text-[10px] leading-none ${indicator.color}`}>
+            {indicator.icon}
+          </span>
+        )}
       </div>
     ) : (
       <div
-        className={`h-full w-full flex items-center justify-center text-xs font-medium rounded ${getSlotColor(slotIndexMap.get(slotId) ?? 0)} ${
+        className={`relative h-full w-full flex items-center justify-center text-xs font-medium rounded ${getSlotColor(slotIndexMap.get(slotId) ?? 0)} ${
           assignment.is_manual_edit ? "ring-2 ring-orange-400" : ""
         }`}
         title={assignment.is_manual_edit ? `${slotName} (手動編集)` : slotName}
       >
         {slotName}
+        {indicator && (
+          <span className={`absolute top-0 right-0.5 text-[10px] leading-none ${indicator.color}`}>
+            {indicator.icon}
+          </span>
+        )}
       </div>
     );
 
@@ -383,6 +521,13 @@ export function ShiftCalendar({
       className="space-y-0"
       style={paintMode.active ? { userSelect: "none" } : undefined}
     >
+      {/* CSV export button */}
+      <div className="flex justify-end mb-2">
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExportCSV}>
+          CSV出力
+        </Button>
+      </div>
+
       {/* Paint mode toolbar */}
       {!isPublished && (
         <div className="flex items-center gap-2 mb-3 flex-wrap" data-testid="paint-toolbar">
@@ -441,35 +586,110 @@ export function ShiftCalendar({
               {dates.map((date) => {
                 const d = new Date(date + "T00:00:00");
                 const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const working = requirements.length === 0 || isWorkingDay(date);
                 return (
                   <th
                     key={date}
                     className={`border-b border-r px-1 py-2 text-center text-xs font-medium min-w-[70px] ${
                       isWeekend ? "bg-red-50 text-red-700" : "bg-gray-50"
-                    }`}
+                    } ${!working ? "opacity-50" : ""}`}
                   >
                     {formatDate(date)}
+                    {!working && (
+                      <div className="text-[10px] text-gray-400 font-normal leading-tight">
+                        休業
+                      </div>
+                    )}
                   </th>
                 );
               })}
+              <th className="border-b border-r px-2 py-2 text-xs font-semibold bg-gray-50 min-w-[60px]">
+                合計
+              </th>
             </tr>
           </thead>
           <tbody>
-            {staffList.map((staff) => (
-              <tr key={staff.id} className="hover:bg-gray-50/50">
-                <td className="sticky left-0 z-10 bg-white border-b border-r px-3 py-1 text-sm font-medium whitespace-nowrap">
-                  {staff.name}
-                </td>
-                {dates.map((date) => (
-                  <td
-                    key={`${staff.id}-${date}`}
-                    className="border-b border-r p-0.5 h-9"
-                  >
-                    {renderCell(staff, date)}
+            {staffList.map((staff) => {
+              const total = totalWorkDays.get(staff.id) ?? 0;
+              const weeks = weeklyWorkDays.get(staff.id) ?? [];
+              const overMax = weeks.some((w) => w > staff.max_days_per_week);
+              const underMin = staff.min_days_per_week > 0
+                && weeks.some((w) => w < staff.min_days_per_week);
+              const totalColorClass = overMax
+                ? "text-red-600 bg-red-50"
+                : underMin
+                ? "text-orange-600 bg-orange-50"
+                : "text-green-700 bg-green-50";
+              return (
+                <tr key={staff.id} className="hover:bg-gray-50/50">
+                  <td className="sticky left-0 z-10 bg-white border-b border-r px-3 py-1 text-sm font-medium whitespace-nowrap">
+                    {staff.name}
                   </td>
+                  {dates.map((date) => (
+                    <td
+                      key={`${staff.id}-${date}`}
+                      className="border-b border-r p-0.5 h-9"
+                    >
+                      {renderCell(staff, date)}
+                    </td>
+                  ))}
+                  <td className="border-b border-r px-2 py-1 text-center">
+                    <div className={`text-xs font-medium rounded px-1 ${totalColorClass}`}>
+                      {total}日
+                    </div>
+                    {(overMax || underMin) && (
+                      <div className="text-[10px] text-gray-400">
+                        {weeks.join("/")}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {/* 必要人数 / 配置済み集計行 */}
+            {requirements.length > 0 && (
+              <>
+                <tr>
+                  <td
+                    className="sticky left-0 bg-gray-100 border-b border-r px-3 py-1 text-xs font-semibold text-muted-foreground"
+                    colSpan={dates.length + 2}
+                  >
+                    必要人数 / 配置済み
+                  </td>
+                </tr>
+                {shiftSlots.map((slot) => (
+                  <tr key={`req-${slot.id}`} className="bg-gray-50/50">
+                    <td className="sticky left-0 bg-gray-50 border-b border-r px-3 py-1 text-xs text-muted-foreground whitespace-nowrap">
+                      {slot.name}
+                    </td>
+                    {dates.map((date) => {
+                      const required = getRequiredCount(date, slot.id);
+                      const actual = actualCountMap.get(`${date}-${slot.id}`) ?? 0;
+                      const isMet = actual >= required;
+                      return (
+                        <td key={date} className="border-b border-r p-0.5 text-center">
+                          {required > 0 ? (
+                            <div
+                              className={`text-xs font-medium rounded px-1 ${
+                                isMet
+                                  ? "text-green-700 bg-green-50"
+                                  : "text-red-700 bg-red-50"
+                              }`}
+                            >
+                              {actual}/{required}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-300">-</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="border-b border-r" />
+                  </tr>
                 ))}
-              </tr>
-            ))}
+              </>
+            )}
           </tbody>
         </table>
       </div>

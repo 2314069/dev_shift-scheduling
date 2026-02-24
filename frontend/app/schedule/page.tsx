@@ -13,6 +13,8 @@ import type {
   ScheduleResponse,
   OptimizeResponse,
   DiagnosticItem,
+  StaffingRequirement,
+  StaffRequest,
 } from "@/lib/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -46,8 +48,10 @@ export default function SchedulePage() {
 
   // Schedule data
   const [assignments, setAssignments] = useState<ScheduleAssignment[]>([]);
+  const [staffRequests, setStaffRequests] = useState<StaffRequest[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [shiftSlots, setShiftSlots] = useState<ShiftSlot[]>([]);
+  const [requirements, setRequirements] = useState<StaffingRequirement[]>([]);
 
   // Loading states
   const [loadingPeriods, setLoadingPeriods] = useState(true);
@@ -79,12 +83,14 @@ export default function SchedulePage() {
   useEffect(() => {
     async function fetchReferenceData() {
       try {
-        const [staffData, slotsData] = await Promise.all([
+        const [staffData, slotsData, reqData] = await Promise.all([
           apiFetch<Staff[]>("/api/staff"),
           apiFetch<ShiftSlot[]>("/api/shift-slots"),
+          apiFetch<StaffingRequirement[]>("/api/staffing-requirements"),
         ]);
         setStaffList(staffData);
         setShiftSlots(slotsData);
+        setRequirements(reqData);
       } catch (e) {
         console.error(e);
         toast.error("マスタデータの取得に失敗しました");
@@ -99,11 +105,13 @@ export default function SchedulePage() {
     if (!periodId) return;
     try {
       setLoadingSchedule(true);
-      const data = await apiFetch<ScheduleResponse>(
-        `/api/schedules/${periodId}`
-      );
-      setSelectedPeriod(data.period);
-      setAssignments(data.assignments);
+      const [scheduleData, requestsData] = await Promise.all([
+        apiFetch<ScheduleResponse>(`/api/schedules/${periodId}`),
+        apiFetch<StaffRequest[]>(`/api/requests?period_id=${periodId}`),
+      ]);
+      setSelectedPeriod(scheduleData.period);
+      setAssignments(scheduleData.assignments);
+      setStaffRequests(requestsData);
     } catch (e) {
       console.error(e);
       toast.error("スケジュールの取得に失敗しました");
@@ -119,6 +127,7 @@ export default function SchedulePage() {
     } else {
       setSelectedPeriod(null);
       setAssignments([]);
+      setStaffRequests([]);
       setDiagnostics([]);
     }
   }, [selectedPeriodId, fetchSchedule]);
@@ -386,6 +395,8 @@ export default function SchedulePage() {
                 staffList={staffList}
                 shiftSlots={shiftSlots}
                 assignments={assignments}
+                requirements={requirements}
+                staffRequests={staffRequests}
                 isPublished={selectedPeriod.status === "published"}
                 onAssignmentUpdated={handleAssignmentUpdated}
               />
