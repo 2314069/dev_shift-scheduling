@@ -132,6 +132,147 @@ def _presolve_checks(
     return diagnostics
 
 
+def _diagnose_with_highs_iis(
+    prob: LpProblem,
+    staff_list: list[Staff],
+    slots: list[ShiftSlot],
+) -> list[DiagnosticItem]:
+    """HiGHS の IIS を使って制約違反の原因を特定する"""
+    try:
+        _, iis = prob.solverModel.getIis()
+        if not iis.valid_:
+            return []
+    except Exception:
+        return []
+
+    constraint_keys = list(prob.constraints.keys())
+    iis_row_indices = list(iis.row_index_)
+
+    # row_index_ が空の場合は row_status_ にフォールバック
+    if not iis_row_indices:
+        try:
+            import highspy as _highspy
+            in_conflict = int(_highspy.IisStatus.kIisStatusInConflict)
+            maybe_conflict = int(_highspy.IisStatus.kIisStatusMaybeInConflict)
+            row_statuses = list(iis.row_status_)
+            iis_row_indices = [
+                i for i, s in enumerate(row_statuses)
+                if s in (in_conflict, maybe_conflict) and i < len(constraint_keys)
+            ]
+        except Exception:
+            return []
+
+    if not iis_row_indices:
+        return []
+
+    staff_map = {s.id: s.name for s in staff_list}
+    slot_map = {t.id: t.name for t in slots}
+
+    # 制約名のプレフィックスごとに分類
+    types_found: dict[str, list[str]] = defaultdict(list)
+    for row_idx in iis_row_indices:
+        if row_idx < len(constraint_keys):
+            cname = constraint_keys[row_idx]
+            prefix = cname.split("_")[0]
+            types_found[prefix].append(cname)
+
+    diagnostics: list[DiagnosticItem] = []
+
+    if "staffing" in types_found:
+        examples = []
+        for cname in types_found["staffing"][:3]:
+            parts = cname.split("_")
+            # staffing_YYYYMMDD_SLOTID
+            if len(parts) >= 3:
+                ymd = parts[1]  # '20260307'
+                try:
+                    slot_id = int(parts[2])
+                    d_str = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:]}" if len(ymd) == 8 else ymd
+                    slot_name = slot_map.get(slot_id, f"枠{slot_id}")
+                    examples.append(f"{d_str}の{slot_name}")
+                except (ValueError, IndexError):
+                    pass
+        detail = "（例: " + "、".join(examples) + "）" if examples else ""
+        diagnostics.append(DiagnosticItem(
+            constraint="C2_staffing",
+            severity="error",
+            message=f"必要人数を満たせない日程があります{detail}。必要人数を下げるか、「必要人数を目標として扱う」を有効にしてください。",
+        ))
+
+    if "unavail" in types_found:
+        affected: set[str] = set()
+        for cname in types_found["unavail"]:
+            parts = cname.split("_")
+            # unavail_STAFFID_YYYYMMDD_SLOTID
+            if len(parts) >= 2:
+                try:
+                    staff_id = int(parts[1])
+                    affected.add(staff_map.get(staff_id, f"スタッフ{staff_id}"))
+                except ValueError:
+                    pass
+        names = "、".join(list(affected)[:3])
+        diagnostics.append(DiagnosticItem(
+            constraint="C3_unavailable",
+            severity="error",
+            message=f"不可日の登録が多すぎる可能性があります（{names}）。スタッフの不可日を見直してください。",
+        ))
+
+    if "consec" in types_found:
+        diagnostics.append(DiagnosticItem(
+            constraint="C4_consecutive",
+            severity="error",
+            message="連勤制限が厳しすぎます。最大連続勤務日数を引き上げてください（設定画面 → 基本設定）。",
+        ))
+
+    if "weekly" in types_found:
+        affected: set[str] = set()
+        for cname in types_found["weekly"]:
+            parts = cname.split("_")
+            # weekly_STAFFID_YYYYMMDD
+            if len(parts) >= 2:
+                try:
+                    staff_id = int(parts[1])
+                    affected.add(staff_map.get(staff_id, f"スタッフ{staff_id}"))
+                except ValueError:
+                    pass
+        names = "、".join(list(affected)[:3])
+        diagnostics.append(DiagnosticItem(
+            constraint="C5_weekly_max",
+            severity="error",
+            message=f"週勤務上限が低すぎます（{names}）。スタッフの週最大勤務日数を引き上げてください。",
+        ))
+
+    if "interval" in types_found:
+        diagnostics.append(DiagnosticItem(
+            constraint="B4_interval",
+            severity="error",
+            message="シフト間インターバル制約が厳しすぎます。インターバル時間を短縮するか無効にしてください（設定画面 → 追加制約）。",
+        ))
+
+    if "role" in types_found:
+        diagnostics.append(DiagnosticItem(
+            constraint="B5_role_staffing",
+            severity="error",
+            message="役割ごとの最低人数を満たせません。役割別必要人数の設定を見直してください。",
+        ))
+
+    if "mindays" in types_found:
+        diagnostics.append(DiagnosticItem(
+            constraint="B6_min_days",
+            severity="error",
+            message="週最低勤務日数の制約を満たせません。スタッフの週最低勤務日数を引き下げてください。",
+        ))
+
+    if not diagnostics:
+        diagnostics.append(DiagnosticItem(
+            constraint="combined",
+            severity="error",
+            message="複数の制約の組み合わせが原因の可能性があります。制約設定を全体的に見直してください。",
+        ))
+
+    return diagnostics
+
+
 def _try_solve_relaxed(
     period: SchedulePeriod,
     staff_list: list[Staff],
@@ -141,13 +282,13 @@ def _try_solve_relaxed(
     config: SolverConfig,
     role_requirements: list[RoleStaffingRequirement],
 ) -> list[DiagnosticItem]:
-    """制約を1つずつ緩和して再ソルブし、原因制約を特定"""
+    """制約を1つずつ緩和して再ソルブし、原因制約を特定（IIS フォールバック用）"""
     diagnostics: list[DiagnosticItem] = []
 
     relaxations: list[tuple[str, str, dict]] = [
         (
             "C2_staffing",
-            "必要人数の設定を見直すか、「必要人数のソフト制約化」を有効にしてください。",
+            "必要人数の設定を見直すか、「必要人数を目標として扱う」を有効にしてください。",
             {"enable_soft_staffing": True},
         ),
         (
@@ -267,7 +408,7 @@ def diagnose_infeasibility(
     config: SolverConfig,
     role_requirements: list[RoleStaffingRequirement],
 ) -> list[DiagnosticItem]:
-    """infeasible 時に原因を特定する診断を実行"""
+    """infeasible 時に原因を特定する診断を実行（HiGHS IIS なしのフォールバック）"""
     num_days = (period.end_date - period.start_date).days + 1
     dates = [period.start_date + timedelta(days=i) for i in range(num_days)]
 
@@ -371,8 +512,8 @@ def solve_schedule(
         z_min = LpVariable("z_min", lowBound=0)
         for s in staff_list:
             total = lpSum(x[(s.id, d, t.id)] for d in dates for t in slots)
-            prob += total <= z_max
-            prob += total >= z_min
+            prob += total <= z_max, f"fairmax_{s.id}"
+            prob += total >= z_min, f"fairmin_{s.id}"
         objective_terms.append(config.weight_fairness * (z_max - z_min))
 
     # A3: 土日祝の公平配分
@@ -385,8 +526,8 @@ def solve_schedule(
                 total = lpSum(
                     x[(s.id, d, t.id)] for d in weekend_dates for t in slots
                 )
-                prob += total <= zw_max
-                prob += total >= zw_min
+                prob += total <= zw_max, f"wfairmax_{s.id}"
+                prob += total >= zw_min, f"wfairmin_{s.id}"
             objective_terms.append(
                 config.weight_weekend_fairness * (zw_max - zw_min)
             )
@@ -412,32 +553,37 @@ def solve_schedule(
     # 制約1: 1日1シフト
     for s in staff_list:
         for d in dates:
-            prob += lpSum(x[(s.id, d, t.id)] for t in slots) <= 1
+            prob += (
+                lpSum(x[(s.id, d, t.id)] for t in slots) <= 1
+            ), f"one_{s.id}_{d.strftime('%Y%m%d')}"
 
     # 制約2: 必要人数確保
     for d in dates:
         for t in slots:
             min_count = req_map.get((t.id, _get_day_type(d)), 0)
             if min_count > 0:
+                cname = f"staffing_{d.strftime('%Y%m%d')}_{t.id}"
                 if config.enable_soft_staffing:
                     u = slack_vars.get((d, t.id))
                     if u is not None:
                         prob += (
                             lpSum(x[(s.id, d, t.id)] for s in staff_list) + u
                             >= min_count
-                        )
+                        ), cname
                 else:
                     prob += (
                         lpSum(x[(s.id, d, t.id)] for s in staff_list)
                         >= min_count
-                    )
+                    ), cname
 
     # 制約3: 不可日
     for s in staff_list:
         for d in dates:
             if (s.id, d) in unavailable:
                 for t in slots:
-                    prob += x[(s.id, d, t.id)] == 0
+                    prob += (
+                        x[(s.id, d, t.id)] == 0
+                    ), f"unavail_{s.id}_{d.strftime('%Y%m%d')}_{t.id}"
 
     # 制約4: 連勤制限
     for s in staff_list:
@@ -446,7 +592,7 @@ def solve_schedule(
             prob += (
                 lpSum(x[(s.id, d, t.id)] for d in window for t in slots)
                 <= config.max_consecutive_days
-            )
+            ), f"consec_{s.id}_{dates[i].strftime('%Y%m%d')}"
 
     # 制約5: 週あたり勤務上限
     for s in staff_list:
@@ -454,11 +600,11 @@ def solve_schedule(
         for d in dates:
             week_start = d - timedelta(days=d.weekday())
             weeks[week_start].append(d)
-        for week_dates in weeks.values():
+        for week_start, week_dates in weeks.items():
             prob += (
                 lpSum(x[(s.id, d, t.id)] for d in week_dates for t in slots)
                 <= s.max_days_per_week
-            )
+            ), f"weekly_{s.id}_{week_start.strftime('%Y%m%d')}"
 
     # B4: シフト間インターバル
     if config.enable_shift_interval:
@@ -473,18 +619,20 @@ def solve_schedule(
                     d1 = dates[i]
                     d2 = dates[i + 1]
                     for t_a_id, t_b_id in conflict_pairs:
-                        prob += x[(s.id, d1, t_a_id)] + x[(s.id, d2, t_b_id)] <= 1
+                        prob += (
+                            x[(s.id, d1, t_a_id)] + x[(s.id, d2, t_b_id)] <= 1
+                        ), f"interval_{s.id}_{d1.strftime('%Y%m%d')}_{t_a_id}_{t_b_id}"
 
     # B5: ロール別必要人数
     if config.enable_role_staffing and role_requirements:
-        for rr in role_requirements:
+        for ri, rr in enumerate(role_requirements):
             eligible = [s for s in staff_list if s.role == rr.role]
             for d in dates:
                 if _get_day_type(d) == rr.day_type:
                     prob += (
                         lpSum(x[(s.id, d, rr.shift_slot_id)] for s in eligible)
                         >= rr.min_count
-                    )
+                    ), f"role_{ri}_{d.strftime('%Y%m%d')}_{rr.shift_slot_id}"
 
     # B6: 最低勤務日数/週
     if config.enable_min_days_per_week:
@@ -494,24 +642,38 @@ def solve_schedule(
                 for d in dates:
                     week_start = d - timedelta(days=d.weekday())
                     weeks_min[week_start].append(d)
-                for week_dates in weeks_min.values():
+                for week_start, week_dates in weeks_min.items():
                     prob += (
                         lpSum(
                             x[(s.id, d, t.id)] for d in week_dates for t in slots
                         )
                         >= s.min_days_per_week
-                    )
+                    ), f"mindays_{s.id}_{week_start.strftime('%Y%m%d')}"
 
-    # 求解
+    # === 求解 ===
+    _used_highs = False
     try:
-        from pulp import SCIP_CMD
+        import pulp as _pulp
+        import highspy as _highspy
 
-        solver = SCIP_CMD(msg=0, timeLimit=config.time_limit)
-        prob.solve(solver)
+        _highs_solver = _pulp.HiGHS(
+            msg=False,
+            timeLimit=float(config.time_limit),
+            iis=True,
+            iis_strategy=int(_highspy.IisStrategy.kIisStrategyIrreducible),
+        )
+        if _highs_solver.available():
+            prob.solve(_highs_solver)
+            _used_highs = True
+        else:
+            raise ImportError("HiGHS not available")
     except Exception:
-        from pulp import PULP_CBC_CMD
-
-        prob.solve(PULP_CBC_CMD(msg=0, timeLimit=config.time_limit))
+        try:
+            from pulp import SCIP_CMD
+            prob.solve(SCIP_CMD(msg=0, timeLimit=config.time_limit))
+        except Exception:
+            from pulp import PULP_CBC_CMD
+            prob.solve(PULP_CBC_CMD(msg=0, timeLimit=config.time_limit))
 
     if prob.status != 1:
         # status 0 = Not Solved (timeout), -1 = Infeasible
@@ -530,10 +692,31 @@ def solve_schedule(
         # Infeasible: run diagnostics
         diagnostics: list[DiagnosticItem] = []
         if not _skip_diagnostics:
-            diagnostics = diagnose_infeasibility(
-                period, staff_list, slots, requirements, requests,
-                config, role_requirements if role_requirements else [],
+            # Phase 1: プリソルブチェック（算術的に明らかな問題）
+            num_days = (period.end_date - period.start_date).days + 1
+            all_dates = [period.start_date + timedelta(days=i) for i in range(num_days)]
+            presolve = _presolve_checks(
+                all_dates, staff_list, slots, requirements, requests, config,
+                role_requirements if role_requirements else [],
             )
+            if presolve:
+                diagnostics = presolve
+            elif _used_highs:
+                # Phase 2: HiGHS IIS で正確な原因特定
+                diagnostics = _diagnose_with_highs_iis(prob, staff_list, slots)
+                if not diagnostics:
+                    # IIS が空の場合は制約緩和テストにフォールバック
+                    diagnostics = _try_solve_relaxed(
+                        period, staff_list, slots, requirements, requests,
+                        config, role_requirements if role_requirements else [],
+                    )
+            else:
+                # Phase 2 (フォールバック): 制約緩和テスト
+                diagnostics = _try_solve_relaxed(
+                    period, staff_list, slots, requirements, requests,
+                    config, role_requirements if role_requirements else [],
+                )
+
         return {
             "status": "infeasible",
             "message": "実行可能なシフトが見つかりませんでした。下記の診断結果を確認してください。" if diagnostics else "実行可能なシフトが見つかりませんでした。制約を緩和してください。",
