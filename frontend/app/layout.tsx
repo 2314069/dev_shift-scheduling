@@ -37,12 +37,6 @@ export default function RootLayout({
             </Link>
             <nav className="flex gap-6">
               <Link
-                href="/schedule"
-                className="text-sm font-medium hover:text-primary"
-              >
-                シフト表
-              </Link>
-              <Link
                 href="/settings"
                 className="text-sm font-medium hover:text-primary"
               >
@@ -53,6 +47,12 @@ export default function RootLayout({
                 className="text-sm font-medium hover:text-primary"
               >
                 希望入力
+              </Link>
+              <Link
+                href="/schedule"
+                className="text-sm font-medium hover:text-primary"
+              >
+                シフト表
               </Link>
             </nav>
           </div>

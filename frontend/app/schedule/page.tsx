@@ -14,6 +14,7 @@ import type {
   OptimizeResponse,
   DiagnosticItem,
 } from "@/lib/types";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,9 +221,34 @@ export default function SchedulePage() {
   const isDraft = selectedPeriod?.status === "draft";
   const hasAssignments = assignments.length > 0;
 
+  const isSetupIncomplete = !loadingPeriods && (staffList.length === 0 || shiftSlots.length === 0);
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <h1 className="text-2xl font-bold">シフト表</h1>
+
+      {/* Onboarding banner */}
+      {isSetupIncomplete && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-medium mb-1">はじめに設定が必要です</p>
+          <p className="mb-2">シフト表を作成する前に、次の順番で設定してください：</p>
+          <ol className="list-decimal list-inside space-y-1 mb-3">
+            <li className={staffList.length > 0 ? "line-through text-amber-500" : ""}>
+              スタッフを登録する
+            </li>
+            <li className={shiftSlots.length > 0 ? "line-through text-amber-500" : ""}>
+              シフト枠を登録する（例: 早番・遅番）
+            </li>
+            <li>必要人数を設定する</li>
+            <li>希望入力でスタッフの希望を収集する</li>
+          </ol>
+          <Link href="/settings">
+            <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100">
+              設定画面へ →
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Period Management */}
       <Card>

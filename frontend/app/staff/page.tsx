@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -244,7 +245,11 @@ function StaffPageContent() {
           <CardContent>
             {staffList.length === 0 ? (
               <p className="text-muted-foreground">
-                スタッフが登録されていません。設定画面から追加してください。
+                スタッフが登録されていません。{" "}
+                <Link href="/settings" className="underline hover:text-foreground">
+                  設定画面
+                </Link>
+                から追加してください。
               </p>
             ) : (
               <div className="space-y-2">

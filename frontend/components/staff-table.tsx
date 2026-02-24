@@ -223,6 +223,9 @@ export function StaffTable() {
                   onChange={(e) => setFormRole(e.target.value)}
                   placeholder="例: 正社員"
                 />
+                <p className="text-xs text-muted-foreground">
+                  役割ごとに最低配置人数を設定できます（設定 → 必要人数設定）
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">最大勤務日数/週</label>
