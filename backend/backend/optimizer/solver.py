@@ -1,9 +1,11 @@
+from copy import deepcopy
 from datetime import date, timedelta
 from collections import defaultdict
 
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
 
 from backend.domain import (
+    DiagnosticItem,
     RoleStaffingRequirement,
     SchedulePeriod,
     ShiftSlot,
@@ -51,6 +53,237 @@ def _shifts_conflict(slot_a: ShiftSlot, slot_b: ShiftSlot, min_hours: int) -> bo
     return gap < min_hours * 60
 
 
+def _presolve_checks(
+    dates: list[date],
+    staff_list: list[Staff],
+    slots: list[ShiftSlot],
+    requirements: list[StaffingRequirement],
+    requests: list[StaffRequest],
+    config: SolverConfig,
+    role_requirements: list[RoleStaffingRequirement],
+) -> list[DiagnosticItem]:
+    """ソルバーを使わずに算術チェックで明らかな問題を検出"""
+    diagnostics: list[DiagnosticItem] = []
+
+    unavailable = set()
+    for req in requests:
+        if req.type == "unavailable":
+            unavailable.add((req.staff_id, req.date))
+
+    req_map: dict[tuple[int, str], int] = {}
+    for r in requirements:
+        req_map[(r.shift_slot_id, r.day_type)] = r.min_count
+
+    # 日別・シフト枠別の利用可能人数 vs 必要人数
+    for d in dates:
+        day_type = _get_day_type(d)
+        for t in slots:
+            min_count = req_map.get((t.id, day_type), 0)
+            if min_count <= 0:
+                continue
+            unavailable_on_date = sum(
+                1 for s in staff_list if (s.id, d) in unavailable
+            )
+            available = len(staff_list) - unavailable_on_date
+            if available < min_count:
+                if unavailable_on_date > 0:
+                    diagnostics.append(DiagnosticItem(
+                        constraint="C3_unavailable",
+                        severity="error",
+                        message=f"{d.isoformat()} のシフト「{t.name}」で不可日により利用可能人数({available}人)が必要人数({min_count}人)に不足しています。不可日の登録を見直してください。",
+                    ))
+                else:
+                    diagnostics.append(DiagnosticItem(
+                        constraint="C2_staffing",
+                        severity="error",
+                        message=f"{d.isoformat()} のシフト「{t.name}」で利用可能人数({available}人)が必要人数({min_count}人)に不足しています。",
+                    ))
+
+    # 週別の勤務上限合計 vs 必要人日
+    weeks: dict[date, list[date]] = defaultdict(list)
+    for d in dates:
+        week_start = d - timedelta(days=d.weekday())
+        weeks[week_start].append(d)
+    for week_start, week_dates in weeks.items():
+        total_capacity = sum(s.max_days_per_week for s in staff_list)
+        total_needed = 0
+        for d in week_dates:
+            day_type = _get_day_type(d)
+            for t in slots:
+                total_needed += req_map.get((t.id, day_type), 0)
+        if total_needed > total_capacity:
+            diagnostics.append(DiagnosticItem(
+                constraint="C5_weekly_max",
+                severity="error",
+                message=f"週 {week_start.isoformat()} 開始: 必要延べ人日({total_needed})がスタッフの週勤務上限合計({total_capacity})を超えています。",
+            ))
+
+    # ロール別人数チェック（B5有効時）
+    if config.enable_role_staffing and role_requirements:
+        for rr in role_requirements:
+            eligible = [s for s in staff_list if s.role == rr.role]
+            if len(eligible) < rr.min_count:
+                diagnostics.append(DiagnosticItem(
+                    constraint="B5_role_staffing",
+                    severity="error",
+                    message=f"ロール「{rr.role}」のスタッフ数({len(eligible)}人)が必要人数({rr.min_count}人)に不足しています。",
+                ))
+
+    return diagnostics
+
+
+def _try_solve_relaxed(
+    period: SchedulePeriod,
+    staff_list: list[Staff],
+    slots: list[ShiftSlot],
+    requirements: list[StaffingRequirement],
+    requests: list[StaffRequest],
+    config: SolverConfig,
+    role_requirements: list[RoleStaffingRequirement],
+) -> list[DiagnosticItem]:
+    """制約を1つずつ緩和して再ソルブし、原因制約を特定"""
+    diagnostics: list[DiagnosticItem] = []
+
+    relaxations: list[tuple[str, str, dict]] = [
+        (
+            "C2_staffing",
+            "必要人数の設定を見直すか、「必要人数のソフト制約化」を有効にしてください。",
+            {"enable_soft_staffing": True},
+        ),
+        (
+            "C4_consecutive",
+            "連勤制限の上限を引き上げてください。",
+            {"max_consecutive_days": 999},
+        ),
+        (
+            "C5_weekly_max",
+            "スタッフの週勤務上限を引き上げてください。",
+            {"override_max_days_per_week": 7},
+        ),
+        (
+            "B4_interval",
+            "シフト間インターバルを短縮するか、無効にしてください。",
+            {"enable_shift_interval": False},
+        ),
+        (
+            "B5_role_staffing",
+            "ロール別必要人数の設定を見直してください。",
+            {"enable_role_staffing": False},
+        ),
+        (
+            "B6_min_days",
+            "最低勤務日数の設定を引き下げてください。",
+            {"enable_min_days_per_week": False},
+        ),
+    ]
+
+    # C3: 不可日の緩和は特殊処理
+    has_unavailable = any(r.type == "unavailable" for r in requests)
+
+    resolved_any = False
+
+    for constraint_name, message, overrides in relaxations:
+        relaxed_config = deepcopy(config)
+        relaxed_staff = staff_list
+        relaxed_requests = requests
+
+        # 既にその設定が無効/緩和済みならスキップ
+        if constraint_name == "B4_interval" and not config.enable_shift_interval:
+            continue
+        if constraint_name == "B5_role_staffing" and not config.enable_role_staffing:
+            continue
+        if constraint_name == "B6_min_days" and not config.enable_min_days_per_week:
+            continue
+        if constraint_name == "C2_staffing" and config.enable_soft_staffing:
+            continue
+
+        if "override_max_days_per_week" in overrides:
+            relaxed_staff = [
+                Staff(
+                    id=s.id, name=s.name, role=s.role,
+                    max_days_per_week=7, min_days_per_week=s.min_days_per_week,
+                )
+                for s in staff_list
+            ]
+        else:
+            for key, val in overrides.items():
+                setattr(relaxed_config, key, val)
+
+        result = solve_schedule(
+            period=period,
+            staff_list=relaxed_staff,
+            slots=slots,
+            requirements=requirements,
+            requests=relaxed_requests,
+            config=relaxed_config,
+            role_requirements=role_requirements,
+            _skip_diagnostics=True,
+        )
+        if result["status"] == "optimal":
+            diagnostics.append(DiagnosticItem(
+                constraint=constraint_name,
+                severity="error",
+                message=message,
+            ))
+            resolved_any = True
+
+    # C3: 不可日の緩和テスト
+    if has_unavailable:
+        relaxed_requests = [r for r in requests if r.type != "unavailable"]
+        result = solve_schedule(
+            period=period,
+            staff_list=staff_list,
+            slots=slots,
+            requirements=requirements,
+            requests=relaxed_requests,
+            config=config,
+            role_requirements=role_requirements,
+            _skip_diagnostics=True,
+        )
+        if result["status"] == "optimal":
+            diagnostics.append(DiagnosticItem(
+                constraint="C3_unavailable",
+                severity="error",
+                message="不可日の登録が多すぎる可能性があります。スタッフの不可日を見直してください。",
+            ))
+            resolved_any = True
+
+    if not resolved_any:
+        diagnostics.append(DiagnosticItem(
+            constraint="combined",
+            severity="error",
+            message="複数の制約の組み合わせが原因の可能性があります。制約設定を全体的に見直してください。",
+        ))
+
+    return diagnostics
+
+
+def diagnose_infeasibility(
+    period: SchedulePeriod,
+    staff_list: list[Staff],
+    slots: list[ShiftSlot],
+    requirements: list[StaffingRequirement],
+    requests: list[StaffRequest],
+    config: SolverConfig,
+    role_requirements: list[RoleStaffingRequirement],
+) -> list[DiagnosticItem]:
+    """infeasible 時に原因を特定する診断を実行"""
+    num_days = (period.end_date - period.start_date).days + 1
+    dates = [period.start_date + timedelta(days=i) for i in range(num_days)]
+
+    # Phase 1: プリソルブチェック
+    presolve = _presolve_checks(
+        dates, staff_list, slots, requirements, requests, config, role_requirements,
+    )
+    if presolve:
+        return presolve
+
+    # Phase 2: 制約緩和テスト
+    return _try_solve_relaxed(
+        period, staff_list, slots, requirements, requests, config, role_requirements,
+    )
+
+
 def solve_schedule(
     period: SchedulePeriod,
     staff_list: list[Staff],
@@ -61,6 +294,7 @@ def solve_schedule(
     time_limit: int = 30,
     config: SolverConfig | None = None,
     role_requirements: list[RoleStaffingRequirement] | None = None,
+    _skip_diagnostics: bool = False,
 ) -> dict:
     if config is None:
         config = _default_config()
@@ -278,10 +512,31 @@ def solve_schedule(
         prob.solve()
 
     if prob.status != 1:
+        # status 0 = Not Solved (timeout), -1 = Infeasible
+        if prob.status == 0:
+            return {
+                "status": "timeout",
+                "message": "制限時間内に解が見つかりませんでした。制限時間を延長するか、制約を緩和してください。",
+                "assignments": [],
+                "diagnostics": [DiagnosticItem(
+                    constraint="timeout",
+                    severity="warning",
+                    message=f"制限時間({config.time_limit}秒)内に解が見つかりませんでした。設定画面で制限時間を延長してください。",
+                )] if not _skip_diagnostics else [],
+            }
+
+        # Infeasible: run diagnostics
+        diagnostics: list[DiagnosticItem] = []
+        if not _skip_diagnostics:
+            diagnostics = diagnose_infeasibility(
+                period, staff_list, slots, requirements, requests,
+                config, role_requirements if role_requirements else [],
+            )
         return {
             "status": "infeasible",
-            "message": "実行可能なシフトが見つかりませんでした。制約を緩和してください。",
+            "message": "実行可能なシフトが見つかりませんでした。下記の診断結果を確認してください。" if diagnostics else "実行可能なシフトが見つかりませんでした。制約を緩和してください。",
             "assignments": [],
+            "diagnostics": diagnostics,
         }
 
     # 結果の抽出
@@ -302,4 +557,5 @@ def solve_schedule(
         "status": "optimal",
         "message": "最適なシフトが見つかりました。",
         "assignments": assignments,
+        "diagnostics": [],
     }

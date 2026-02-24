@@ -129,11 +129,20 @@ class ScheduleResponse(BaseModel):
     assignments: list[ScheduleAssignmentResponse]
 
 
+# --- Diagnostic ---
+class DiagnosticItemSchema(BaseModel):
+    constraint: str
+    severity: str
+    message: str
+    details: list[str] | None = None
+
+
 # --- Optimize ---
 class OptimizeResponse(BaseModel):
-    status: str  # "optimal", "infeasible"
+    status: str  # "optimal", "infeasible", "timeout"
     message: str
     assignments: list[ScheduleAssignmentResponse]
+    diagnostics: list[DiagnosticItemSchema] = []
 
 
 # --- SolverConfig ---

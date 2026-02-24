@@ -11,6 +11,7 @@ import type {
   ScheduleAssignment,
   ScheduleResponse,
   OptimizeResponse,
+  DiagnosticItem,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ShiftCalendar } from "@/components/shift-calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 
 function getNextMonthRange(): { start: string; end: string } {
   const now = new Date();
@@ -72,6 +74,9 @@ export default function SchedulePage() {
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [publishing, setPublishing] = useState(false);
+
+  // Diagnostics
+  const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
 
   // Publish confirm dialog
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -130,9 +135,11 @@ export default function SchedulePage() {
   useEffect(() => {
     if (selectedPeriodId) {
       fetchSchedule(selectedPeriodId);
+      setDiagnostics([]);
     } else {
       setSelectedPeriod(null);
       setAssignments([]);
+      setDiagnostics([]);
     }
   }, [selectedPeriodId, fetchSchedule]);
 
@@ -181,6 +188,7 @@ export default function SchedulePage() {
     if (!selectedPeriodId) return;
     try {
       setOptimizing(true);
+      setDiagnostics([]);
       const result = await apiFetch<OptimizeResponse>(
         `/api/schedules/${selectedPeriodId}/optimize`,
         { method: "POST" }
@@ -188,8 +196,10 @@ export default function SchedulePage() {
       if (result.status === "optimal") {
         toast.success(`最適化が完了しました: ${result.message}`);
         setAssignments(result.assignments);
+        setDiagnostics([]);
       } else {
         toast.error(`最適化に失敗しました: ${result.message}`);
+        setDiagnostics(result.diagnostics || []);
       }
     } catch (e) {
       console.error(e);
@@ -347,6 +357,9 @@ export default function SchedulePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Diagnostics Panel */}
+      {diagnostics.length > 0 && <DiagnosticsPanel diagnostics={diagnostics} />}
 
       {/* Shift Calendar */}
       {selectedPeriod && (

@@ -48,8 +48,16 @@ export interface ScheduleResponse {
   assignments: ScheduleAssignment[];
 }
 
+export interface DiagnosticItem {
+  constraint: string;
+  severity: "error" | "warning";
+  message: string;
+  details?: string[];
+}
+
 export interface OptimizeResponse {
   status: string;
   message: string;
   assignments: ScheduleAssignment[];
+  diagnostics: DiagnosticItem[];
 }

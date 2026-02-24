@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.schemas import (
+    DiagnosticItemSchema,
     OptimizeResponse,
     ScheduleAssignmentResponse,
     ScheduleAssignmentUpdate,
@@ -74,4 +75,13 @@ def optimize_schedule(period_id: int, db: Session = Depends(get_db)):
         status=result.status,
         message=result.message,
         assignments=result.assignments,
+        diagnostics=[
+            DiagnosticItemSchema(
+                constraint=d.constraint,
+                severity=d.severity,
+                message=d.message,
+                details=d.details,
+            )
+            for d in result.diagnostics
+        ],
     )

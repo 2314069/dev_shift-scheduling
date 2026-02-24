@@ -3,7 +3,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from backend.domain import ScheduleAssignment, SchedulePeriod
+from backend.domain import DiagnosticItem, ScheduleAssignment, SchedulePeriod
 from backend.optimizer.solver import solve_schedule
 from backend.repositories import (
     ScheduleRepository,
@@ -22,6 +22,11 @@ class OptimizeResult:
     status: str
     message: str
     assignments: list[ScheduleAssignment]
+    diagnostics: list[DiagnosticItem] = None
+
+    def __post_init__(self):
+        if self.diagnostics is None:
+            self.diagnostics = []
 
 
 class ScheduleService:
@@ -92,6 +97,8 @@ class ScheduleService:
             role_requirements=role_requirements,
         )
 
+        diagnostics = result.get("diagnostics", [])
+
         if result["status"] == "optimal":
             self._schedule_repo.bulk_create_assignments(
                 period_id, result["assignments"]
@@ -101,10 +108,12 @@ class ScheduleService:
                 status=result["status"],
                 message=result["message"],
                 assignments=saved,
+                diagnostics=diagnostics,
             )
 
         return OptimizeResult(
             status=result["status"],
             message=result["message"],
             assignments=[],
+            diagnostics=diagnostics,
         )

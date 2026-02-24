@@ -3,6 +3,7 @@ from datetime import date, time
 from collections import Counter, defaultdict
 
 from backend.domain import (
+    DiagnosticItem,
     RoleStaffingRequirement,
     SolverConfig,
     Staff,
@@ -495,3 +496,94 @@ def test_all_features_enabled():
     )
     assert result["status"] == "optimal"
     assert len(result["assignments"]) > 0
+
+
+# === 診断テスト ===
+
+def test_diagnostics_c2_staffing_shortage():
+    """人数不足時に C2_staffing の診断が返る"""
+    staff_list = [Staff(id=1, name="田中", role="一般", max_days_per_week=5)]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 2))
+
+    config = SolverConfig(id=0, enable_soft_staffing=False)
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+
+    assert result["status"] == "infeasible"
+    assert len(result["diagnostics"]) > 0
+    constraints = [d.constraint for d in result["diagnostics"]]
+    assert "C2_staffing" in constraints
+
+
+def test_diagnostics_c5_weekly_max():
+    """週上限が厳しすぎる場合に C5_weekly_max の診断が返る"""
+    # 2人、週1日上限、5日間で毎日2人必要 → 合計10人日必要 vs 容量2人日
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=1),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=1),
+    ]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 6))
+
+    config = SolverConfig(id=0)
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+
+    assert result["status"] == "infeasible"
+    assert len(result["diagnostics"]) > 0
+    constraints = [d.constraint for d in result["diagnostics"]]
+    assert "C5_weekly_max" in constraints
+
+
+def test_diagnostics_c4_consecutive():
+    """連勤制限起因の infeasible で C4_consecutive 診断が返る"""
+    # 1人で7日間毎日1人必要、連勤制限3日 → infeasible
+    staff_list = [Staff(id=1, name="田中", role="一般", max_days_per_week=7)]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [
+        StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=1),
+        StaffingRequirement(id=2, shift_slot_id=1, day_type="weekend", min_count=1),
+    ]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 8))
+
+    config = SolverConfig(id=0, max_consecutive_days=3)
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+
+    assert result["status"] == "infeasible"
+    assert len(result["diagnostics"]) > 0
+    constraints = [d.constraint for d in result["diagnostics"]]
+    assert "C4_consecutive" in constraints
+
+
+def test_diagnostics_empty_on_optimal():
+    """正常時は diagnostics が空"""
+    period, staff_list, slots, requirements = _setup_basic_scenario()
+    result = solve_schedule(period, staff_list, slots, requirements, [])
+
+    assert result["status"] == "optimal"
+    assert result["diagnostics"] == []
+
+
+def test_diagnostics_c3_unavailable():
+    """不可日が多すぎて infeasible になった場合に C3_unavailable 診断が返る"""
+    # 2人スタッフ、毎日2人必要、両方が1日不可
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=5),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=5),
+    ]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 2))
+
+    requests = [
+        StaffRequest(id=1, staff_id=1, date=date(2026, 3, 2), type="unavailable"),
+    ]
+
+    config = SolverConfig(id=0)
+    result = solve_schedule(period, staff_list, slots, requirements, requests, config=config)
+
+    assert result["status"] == "infeasible"
+    assert len(result["diagnostics"]) > 0
+    constraints = [d.constraint for d in result["diagnostics"]]
+    assert "C3_unavailable" in constraints

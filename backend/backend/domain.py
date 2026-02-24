@@ -82,3 +82,11 @@ class RoleStaffingRequirement:
     day_type: str
     role: str
     min_count: int
+
+
+@dataclass
+class DiagnosticItem:
+    constraint: str    # "C2_staffing", "C3_unavailable", etc.
+    severity: str      # "error" | "warning"
+    message: str       # 日本語の具体的メッセージ
+    details: list[str] | None = None
