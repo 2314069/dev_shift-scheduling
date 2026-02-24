@@ -509,7 +509,9 @@ def solve_schedule(
         solver = SCIP_CMD(msg=0, timeLimit=config.time_limit)
         prob.solve(solver)
     except Exception:
-        prob.solve()
+        from pulp import PULP_CBC_CMD
+
+        prob.solve(PULP_CBC_CMD(msg=0, timeLimit=config.time_limit))
 
     if prob.status != 1:
         # status 0 = Not Solved (timeout), -1 = Infeasible
