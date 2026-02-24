@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,9 +18,12 @@ _run_migrations(engine)
 
 app = FastAPI(title="Shift Scheduling API")
 
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
+_allow_origins = [o.strip() for o in _raw_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

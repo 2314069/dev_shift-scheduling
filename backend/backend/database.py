@@ -1,9 +1,15 @@
+import os
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = "sqlite:///shift_scheduling.db"
+_DEFAULT_SQLITE_URL = "sqlite:///shift_scheduling.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", _DEFAULT_SQLITE_URL)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+
+_connect_args = {"check_same_thread": False} if _is_sqlite else {}
+engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -20,7 +26,9 @@ def get_db():
 
 
 def _run_migrations(engine_instance):
-    """既存テーブルに新しいカラムを追加するマイグレーション"""
+    """既存SQLiteテーブルへのカラム追加マイグレーション（SQLiteのみ実行）"""
+    if not _is_sqlite:
+        return
     with engine_instance.connect() as conn:
         # staff テーブルに min_days_per_week カラムがなければ追加
         result = conn.execute(text("PRAGMA table_info(staff)"))
