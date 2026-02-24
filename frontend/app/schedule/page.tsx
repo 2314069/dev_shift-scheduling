@@ -347,14 +347,8 @@ export default function SchedulePage() {
                 onClick={handleOptimize}
                 disabled={!isDraft || optimizing}
               >
-                {optimizing ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    最適化実行中...
-                  </span>
-                ) : (
-                  "最適化実行"
-                )}
+                {optimizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {optimizing ? "計算中..." : "最適化実行"}
               </Button>
 
               <Button
@@ -385,53 +379,66 @@ export default function SchedulePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loadingSchedule ? (
-              <p className="text-muted-foreground">読み込み中...</p>
-            ) : (
-              <ShiftCalendar
-                periodId={selectedPeriod.id}
-                startDate={selectedPeriod.start_date}
-                endDate={selectedPeriod.end_date}
-                staffList={staffList}
-                shiftSlots={shiftSlots}
-                assignments={assignments}
-                requirements={requirements}
-                staffRequests={staffRequests}
-                isPublished={selectedPeriod.status === "published"}
-                onAssignmentUpdated={handleAssignmentUpdated}
-              />
-            )}
+            <div className="relative">
+              {/* Optimizing overlay */}
+              {optimizing && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-white/70 backdrop-blur-sm">
+                  <div className="flex flex-col items-center gap-3 rounded-lg border bg-white px-8 py-6 shadow-md">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">シフトを計算しています...</p>
+                    <p className="text-xs text-muted-foreground">最大 30 秒かかる場合があります</p>
+                  </div>
+                </div>
+              )}
 
-            {/* Legend */}
-            {shiftSlots.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-3 text-xs">
-                <span className="font-medium text-gray-600">凡例:</span>
-                {shiftSlots.map((slot, index) => {
-                  const colors = [
-                    "bg-blue-100 text-blue-800",
-                    "bg-green-100 text-green-800",
-                    "bg-yellow-100 text-yellow-800",
-                    "bg-purple-100 text-purple-800",
-                    "bg-pink-100 text-pink-800",
-                  ];
-                  const colorClass = colors[index % colors.length];
-                  return (
-                    <span
-                      key={slot.id}
-                      className={`inline-flex items-center px-2 py-0.5 rounded ${colorClass}`}
-                    >
-                      {slot.name}
-                    </span>
-                  );
-                })}
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-400">
-                  - (休み)
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded ring-2 ring-orange-400 text-orange-600">
-                  手動編集
-                </span>
-              </div>
-            )}
+              {loadingSchedule ? (
+                <p className="text-muted-foreground">読み込み中...</p>
+              ) : (
+                <ShiftCalendar
+                  periodId={selectedPeriod.id}
+                  startDate={selectedPeriod.start_date}
+                  endDate={selectedPeriod.end_date}
+                  staffList={staffList}
+                  shiftSlots={shiftSlots}
+                  assignments={assignments}
+                  requirements={requirements}
+                  staffRequests={staffRequests}
+                  isPublished={selectedPeriod.status === "published"}
+                  onAssignmentUpdated={handleAssignmentUpdated}
+                />
+              )}
+
+              {/* Legend */}
+              {shiftSlots.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-3 text-xs">
+                  <span className="font-medium text-gray-600">凡例:</span>
+                  {shiftSlots.map((slot, index) => {
+                    const colors = [
+                      "bg-blue-100 text-blue-800",
+                      "bg-green-100 text-green-800",
+                      "bg-yellow-100 text-yellow-800",
+                      "bg-purple-100 text-purple-800",
+                      "bg-pink-100 text-pink-800",
+                    ];
+                    const colorClass = colors[index % colors.length];
+                    return (
+                      <span
+                        key={slot.id}
+                        className={`inline-flex items-center px-2 py-0.5 rounded ${colorClass}`}
+                      >
+                        {slot.name}
+                      </span>
+                    );
+                  })}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-400">
+                    - (休み)
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded ring-2 ring-orange-400 text-orange-600">
+                    手動編集
+                  </span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
