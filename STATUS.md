@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-24 (フロントエンドテスト整備) | ブランチ: main
+> 最終更新: 2026-02-24 (シフト表UI改善 + 最適化設定UI追加) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -34,12 +34,13 @@
 | 希望入力カレンダー | `components/request-calendar.tsx` | ✅ 完了 |
 | スタッフ管理テーブル | `components/staff-table.tsx` | ✅ 完了 |
 | 最適化診断パネル | `components/diagnostics-panel.tsx` | ✅ 完了 |
+| 最適化設定パネル | `components/solver-config-panel.tsx` | ✅ 完了 |
 
 ## テスト状況
 
 ```
 バックエンド: 54 passed (2026-02-24 時点, 診断テスト5件追加)
-フロントエンド: 41 passed (2026-02-24 時点, Vitest + React Testing Library)
+フロントエンド: 53 passed (2026-02-24 時点, Vitest + React Testing Library)
 ```
 
 テスト実行コマンド:
@@ -52,11 +53,11 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| (next) | test: add frontend testing infrastructure and component tests |
+| (next) | feat: add solver config UI and paint mode for shift calendar |
+| `5bbef70` | test: add frontend testing infrastructure and component tests |
 | `9949bb1` | feat: add infeasibility diagnostics for optimizer |
 | `8599bf7` | feat: add solver constraint switches and domain model refactoring |
 | `8a9b93e` | refactor: improve input UX across all frontend components |
-| `e7bed3e` | chore: add Claude multi-agent configuration and CLAUDE.md |
 
 ## TODO / 次のフェーズ候補
 
@@ -64,12 +65,12 @@ cd frontend && npm run test
 
 ### 高優先度
 - [x] フロントエンドテストの整備（Vitest + React Testing Library: 41件）
-- [ ] シフト表の手動編集 UI の改善
+- [x] シフト表の手動編集 UI の改善（ペイントモード追加）
 - [x] 最適化失敗時のエラーメッセージ改善（どの制約が原因か示す）
 
 ### 中優先度
-- [ ] 公平性制約（勤務日数・夜勤回数の均等化）
-- [ ] 希望反映の最適化（目的関数への重み追加）
+- [x] 公平性制約（勤務日数・夜勤回数の均等化）— バックエンド実装済 + フロントエンド設定UI追加
+- [x] 希望反映の最適化（目的関数への重み追加）— バックエンド実装済 + フロントエンド設定UI追加
 - [ ] 公開済みシフト表のスタッフ向け閲覧画面
 
 ### 低優先度

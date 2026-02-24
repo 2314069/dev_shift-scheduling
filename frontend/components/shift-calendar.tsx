@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Pencil } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Pencil, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import type { Staff, ShiftSlot, ScheduleAssignment } from "@/lib/types";
@@ -79,11 +79,52 @@ export function ShiftCalendar({
   const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
   const [saving, setSaving] = useState(false);
 
+  // Paint mode state:
+  // undefined = paint mode OFF, null = painting "休み", number = painting a shift slot ID
+  const [paintSlotId, setPaintSlotId] = useState<number | null | undefined>(undefined);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStaffIdRef = useRef<number | null>(null);
+
+  const isPaintMode = paintSlotId !== undefined;
+
   // Sync localAssignments when assignments prop changes (after server fetch)
   useEffect(() => {
     setLocalAssignments(assignments);
     setPendingEdits(new Map());
   }, [assignments]);
+
+  // Keyboard shortcuts for paint mode
+  useEffect(() => {
+    if (isPublished) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setPaintSlotId(undefined);
+        return;
+      }
+      // Number keys: 0 = 休み toggle, 1-N = slot toggle
+      if (e.key >= "0" && e.key <= "9") {
+        const num = parseInt(e.key, 10);
+        if (num === 0) {
+          setPaintSlotId((prev) => (prev === null ? undefined : null));
+        } else if (num <= shiftSlots.length) {
+          const slotId = shiftSlots[num - 1].id;
+          setPaintSlotId((prev) => (prev === slotId ? undefined : slotId));
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPublished, shiftSlots]);
+
+  // Global mouseup to end drag
+  useEffect(() => {
+    function handleMouseUp() {
+      setIsDragging(false);
+      dragStaffIdRef.current = null;
+    }
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, []);
 
   const dates = getDatesInRange(startDate, endDate);
 
@@ -110,37 +151,57 @@ export function ShiftCalendar({
     return slot ? `${slot.start_time}〜${slot.end_time}` : "";
   }
 
-  const handleCellEdit = useCallback(
-    (staffId: number, date: string, assignment: ScheduleAssignment, newSlotId: string) => {
+  const applyEdit = useCallback(
+    (staffId: number, date: string, newSlotId: number | null) => {
       const key = `${staffId}-${date}`;
-      const parsedSlotId = newSlotId === "off" ? null : Number(newSlotId);
+      const assignment = assignmentMap.get(key);
+      if (!assignment) return;
+      if (assignment.shift_slot_id === newSlotId) return;
 
-      // Update local state optimistically
       setLocalAssignments((prev) =>
         prev.map((a) =>
           a.id === assignment.id
-            ? { ...a, shift_slot_id: parsedSlotId, is_manual_edit: true }
+            ? { ...a, shift_slot_id: newSlotId, is_manual_edit: true }
             : a
         )
       );
 
-      // Track pending edit
       setPendingEdits((prev) => {
         const next = new Map(prev);
-        // If reverting to original value, remove from pending
         const original = assignments.find((a) => a.id === assignment.id);
-        if (original && original.shift_slot_id === parsedSlotId) {
+        if (original && original.shift_slot_id === newSlotId) {
           next.delete(key);
         } else {
-          next.set(key, { assignmentId: assignment.id, newSlotId: parsedSlotId });
+          next.set(key, { assignmentId: assignment.id, newSlotId });
         }
         return next;
       });
+    },
+    [assignmentMap, assignments]
+  );
 
+  const handleCellEdit = useCallback(
+    (staffId: number, date: string, assignment: ScheduleAssignment, newSlotId: string) => {
+      const parsedSlotId = newSlotId === "off" ? null : Number(newSlotId);
+      applyEdit(staffId, date, parsedSlotId);
       setOpenPopoverKey(null);
     },
-    [assignments]
+    [applyEdit]
   );
+
+  function handlePaintCellDown(staffId: number, date: string) {
+    if (!isPaintMode) return;
+    setIsDragging(true);
+    dragStaffIdRef.current = staffId;
+    applyEdit(staffId, date, paintSlotId);
+  }
+
+  function handlePaintCellEnter(staffId: number, date: string) {
+    if (!isDragging || !isPaintMode) return;
+    // Only paint within the same staff row
+    if (dragStaffIdRef.current !== staffId) return;
+    applyEdit(staffId, date, paintSlotId);
+  }
 
   async function handleSaveAll() {
     if (pendingEdits.size === 0) return;
@@ -206,6 +267,25 @@ export function ShiftCalendar({
 
     if (isPublished) return cellContent;
 
+    // Paint mode: click/drag to apply
+    if (isPaintMode) {
+      return (
+        <div
+          className={`h-full w-full cursor-crosshair rounded transition-all hover:ring-2 hover:ring-blue-300 ${
+            isPending ? "ring-2 ring-amber-400" : ""
+          }`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handlePaintCellDown(staff.id, date);
+          }}
+          onMouseEnter={() => handlePaintCellEnter(staff.id, date)}
+        >
+          {cellContent}
+        </div>
+      );
+    }
+
+    // Normal mode: Popover editing
     return (
       <Popover
         open={openPopoverKey === key}
@@ -263,7 +343,48 @@ export function ShiftCalendar({
   }
 
   return (
-    <div className="space-y-0">
+    <div
+      className="space-y-0"
+      style={isPaintMode ? { userSelect: "none" } : undefined}
+    >
+      {/* Paint mode toolbar */}
+      {!isPublished && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap" data-testid="paint-toolbar">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Paintbrush className="h-3.5 w-3.5" />
+            ペイント:
+          </span>
+          <Button
+            size="sm"
+            variant={paintSlotId === null ? "default" : "outline"}
+            onClick={() => setPaintSlotId(paintSlotId === null ? undefined : null)}
+            className="h-7 text-xs"
+          >
+            <span className="mr-1 text-muted-foreground font-mono">0</span>
+            休み
+          </Button>
+          {shiftSlots.map((slot, index) => (
+            <Button
+              key={slot.id}
+              size="sm"
+              variant={paintSlotId === slot.id ? "default" : "outline"}
+              onClick={() =>
+                setPaintSlotId(paintSlotId === slot.id ? undefined : slot.id)
+              }
+              className="h-7 text-xs"
+            >
+              <span className="mr-1 text-muted-foreground font-mono">{index + 1}</span>
+              {slot.name}
+            </Button>
+          ))}
+          {isPaintMode && (
+            <span className="text-xs text-muted-foreground ml-2">
+              (Escで解除)
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto border rounded-lg">
         <table className="min-w-full border-collapse">
           <thead>

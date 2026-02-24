@@ -61,3 +61,21 @@ export interface OptimizeResponse {
   assignments: ScheduleAssignment[];
   diagnostics: DiagnosticItem[];
 }
+
+export interface SolverConfig {
+  id: number;
+  max_consecutive_days: number;
+  time_limit: number;
+  min_shift_interval_hours: number;
+  enable_preferred_shift: boolean;
+  enable_fairness: boolean;
+  enable_weekend_fairness: boolean;
+  enable_shift_interval: boolean;
+  enable_role_staffing: boolean;
+  enable_min_days_per_week: boolean;
+  enable_soft_staffing: boolean;
+  weight_preferred: number;
+  weight_fairness: number;
+  weight_weekend_fairness: number;
+  weight_soft_staffing: number;
+}
