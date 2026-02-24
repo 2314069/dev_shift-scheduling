@@ -23,7 +23,7 @@ describe("SolverConfigPanel", () => {
     });
     expect(screen.getByText("勤務日数の公平配分")).toBeInTheDocument();
     expect(screen.getByText("土日祝の公平配分")).toBeInTheDocument();
-    expect(screen.getByText("シフト間インターバル制約")).toBeInTheDocument();
+    expect(screen.getByText("連続シフト間の休憩を保証する")).toBeInTheDocument();
   });
 
   it("calls PUT when toggling a feature", async () => {

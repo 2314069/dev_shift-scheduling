@@ -31,6 +31,8 @@ const defaultProps = {
   endDate: "2026-03-02",
   staffList: staff,
   shiftSlots: slots,
+  requirements: [],
+  staffRequests: [],
   isPublished: false,
   onAssignmentUpdated: () => {},
 };

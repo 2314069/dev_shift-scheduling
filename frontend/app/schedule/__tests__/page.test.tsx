@@ -28,18 +28,20 @@ function setupDefaultMocks({
   staff = [] as ReturnType<typeof makeStaff>[],
   slots = [] as ReturnType<typeof makeShiftSlot>[],
 } = {}) {
-  mockApiFetch.mockResolvedValueOnce(staff);  // /api/staff
-  mockApiFetch.mockResolvedValueOnce(slots);  // /api/shift-slots
-  mockApiFetch.mockResolvedValueOnce(periods); // /api/schedules
+  mockApiFetch.mockResolvedValueOnce(staff);    // /api/staff
+  mockApiFetch.mockResolvedValueOnce(slots);    // /api/shift-slots
+  mockApiFetch.mockResolvedValueOnce([]);       // /api/staffing-requirements
+  mockApiFetch.mockResolvedValueOnce(periods);  // /api/schedules
 }
 
 const user = userEvent.setup({ pointerEventsCheck: 0 });
 
 // Helper: creates a period via the "create" button, which auto-selects it
 async function createAndSelectPeriod(period: ReturnType<typeof makeSchedulePeriod>, assignments: ReturnType<typeof makeAssignment>[] = []) {
-  mockApiFetch.mockResolvedValueOnce(period); // POST /api/schedules
-  mockApiFetch.mockResolvedValueOnce([period]); // re-fetch periods
+  mockApiFetch.mockResolvedValueOnce(period);              // POST /api/schedules
+  mockApiFetch.mockResolvedValueOnce([period]);             // re-fetch periods
   mockApiFetch.mockResolvedValueOnce({ period, assignments }); // fetchSchedule
+  mockApiFetch.mockResolvedValueOnce([]);                  // /api/requests?period_id=X
 
   await user.click(screen.getByText("期間を作成"));
 
@@ -72,9 +74,10 @@ describe("SchedulePage", () => {
     });
 
     const created = makeSchedulePeriod({ id: 1, start_date: "2026-03-01", end_date: "2026-03-31" });
-    mockApiFetch.mockResolvedValueOnce(created);
-    mockApiFetch.mockResolvedValueOnce([created]);
-    mockApiFetch.mockResolvedValueOnce({ period: created, assignments: [] });
+    mockApiFetch.mockResolvedValueOnce(created);                        // POST /api/schedules
+    mockApiFetch.mockResolvedValueOnce([created]);                       // re-fetch periods
+    mockApiFetch.mockResolvedValueOnce({ period: created, assignments: [] }); // fetchSchedule
+    mockApiFetch.mockResolvedValueOnce([]);                             // /api/requests?period_id=X
 
     await user.click(screen.getByText("期間を作成"));
 
