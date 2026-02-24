@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-24 (シフト表UI改善 + 最適化設定UI追加) | ブランチ: main
+> 最終更新: 2026-02-24 (Vercel + Railway デプロイ設定追加) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -53,11 +53,11 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| (next) | feat: add solver config UI and paint mode for shift calendar |
+| `d330311` | feat: add deployment config for Vercel + Railway |
+| `c561d1c` | refactor: address code review findings across solver config and shift calendar |
+| `e86f6cc` | feat: add solver config UI and paint mode for shift calendar |
 | `5bbef70` | test: add frontend testing infrastructure and component tests |
 | `9949bb1` | feat: add infeasibility diagnostics for optimizer |
-| `8599bf7` | feat: add solver constraint switches and domain model refactoring |
-| `8a9b93e` | refactor: improve input UX across all frontend components |
 
 ## TODO / 次のフェーズ候補
 
@@ -74,8 +74,8 @@ cd frontend && npm run test
 - [ ] 公開済みシフト表のスタッフ向け閲覧画面
 
 ### 低優先度
+- [x] PostgreSQL 対応（Vercel + Railway デプロイ設定）
 - [ ] 認証・ログイン機能
-- [ ] PostgreSQL への移行
 - [ ] 非同期ジョブ化（大規模対応）
 - [ ] シフト表の CSV/PDF エクスポート
 
