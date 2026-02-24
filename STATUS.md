@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-24 (診断機能追加) | ブランチ: main
+> 最終更新: 2026-02-24 (フロントエンドテスト整備) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -39,30 +39,31 @@
 
 ```
 バックエンド: 54 passed (2026-02-24 時点, 診断テスト5件追加)
-フロントエンド: テスト未実装
+フロントエンド: 41 passed (2026-02-24 時点, Vitest + React Testing Library)
 ```
 
 テスト実行コマンド:
 ```bash
 cd backend && uv run python -m pytest -v
+cd frontend && npm run test
 ```
 
 ## 最近のコミット
 
 | コミット | 内容 |
 |---------|------|
-| (next) | feat: add infeasibility diagnostics for optimizer |
+| (next) | test: add frontend testing infrastructure and component tests |
+| `9949bb1` | feat: add infeasibility diagnostics for optimizer |
 | `8599bf7` | feat: add solver constraint switches and domain model refactoring |
 | `8a9b93e` | refactor: improve input UX across all frontend components |
 | `e7bed3e` | chore: add Claude multi-agent configuration and CLAUDE.md |
-| `9205396` | docs: add shift scheduling design and implementation plans |
 
 ## TODO / 次のフェーズ候補
 
 設計書 (`docs/plans/2026-02-09-shift-scheduling-design.md`) に記載の将来拡張より:
 
 ### 高優先度
-- [ ] フロントエンドテストの整備（Vitest / Playwright）
+- [x] フロントエンドテストの整備（Vitest + React Testing Library: 41件）
 - [ ] シフト表の手動編集 UI の改善
 - [x] 最適化失敗時のエラーメッセージ改善（どの制約が原因か示す）
 
@@ -80,4 +81,4 @@ cd backend && uv run python -m pytest -v
 ## 既知の問題・メモ
 
 - テスト実行は `uv run pytest` ではなく `uv run python -m pytest` を使うこと（root から実行時）
-- フロントエンドテストは未実装のため、UIの動作確認は手動
+- フロントエンドテストは `npm run test` で実行（Vitest + React Testing Library）
