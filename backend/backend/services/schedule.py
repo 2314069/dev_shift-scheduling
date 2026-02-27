@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -87,6 +87,17 @@ class ScheduleService:
         config = self._config_repo.get_or_create_default()
         role_requirements = self._role_req_repo.list_all()
 
+        # 月またぎ連勤チェック: 直前公開済み期間の末尾勤務実績を取得
+        prefix_assignments: dict[int, list] = {}
+        prev_period = self._schedule_repo.get_published_period_ending_before(period.start_date)
+        if prev_period is not None:
+            n = config.max_consecutive_days - 1
+            tail_start = prev_period.end_date - timedelta(days=n - 1)
+            prev_assignments = self._schedule_repo.get_assignments_by_period(prev_period.id)
+            for a in prev_assignments:
+                if a.shift_slot_id is not None and a.date >= tail_start:
+                    prefix_assignments.setdefault(a.staff_id, []).append(a.date)
+
         result = solve_schedule(
             period=period,
             staff_list=staff_list,
@@ -95,6 +106,7 @@ class ScheduleService:
             requests=requests,
             config=config,
             role_requirements=role_requirements,
+            prefix_assignments=prefix_assignments if prefix_assignments else None,
         )
 
         diagnostics = result.get("diagnostics", [])
