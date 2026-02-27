@@ -106,3 +106,17 @@ class ScheduleRepository:
         self.db.commit()
         self.db.refresh(model)
         return self._to_assignment_domain(model)
+
+    def get_published_period_ending_before(self, start_date: date_type) -> SchedulePeriod | None:
+        """start_date の前日を end_date とする公開済み期間を返す"""
+        from datetime import timedelta
+        target_end = start_date - timedelta(days=1)
+        model = (
+            self.db.query(SchedulePeriodModel)
+            .filter(
+                SchedulePeriodModel.end_date == target_end,
+                SchedulePeriodModel.status == "published",
+            )
+            .first()
+        )
+        return self._to_period_domain(model) if model else None
