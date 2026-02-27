@@ -587,3 +587,50 @@ def test_diagnostics_c3_unavailable():
     assert len(result["diagnostics"]) > 0
     constraints = [d.constraint for d in result["diagnostics"]]
     assert "C3_unavailable" in constraints
+
+
+def test_cross_month_consecutive_days_respected():
+    """月またぎの連続勤務制限を確認"""
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=7),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=7),
+        Staff(id=3, name="鈴木", role="一般", max_days_per_week=7),
+    ]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    # 4月1日（水）〜7日（火）
+    period = SchedulePeriod(id=1, start_date=date(2026, 4, 1), end_date=date(2026, 4, 7))
+
+    # 田中は3月29〜31日（3日間）すでに連続勤務済み。max_consecutive_days=4 なら今月は1日のみ可
+    prefix_assignments = {
+        1: [date(2026, 3, 29), date(2026, 3, 30), date(2026, 3, 31)],
+    }
+
+    config = SolverConfig(
+        id=1,
+        max_consecutive_days=4,
+        time_limit=30,
+        min_shift_interval_hours=11,
+        enable_preferred_shift=False,
+        enable_fairness=False,
+        enable_weekend_fairness=False,
+        enable_shift_interval=False,
+        enable_role_staffing=False,
+        enable_min_days_per_week=False,
+        enable_soft_staffing=False,
+    )
+
+    result = solve_schedule(
+        period, staff_list, slots, requirements, [],
+        config=config,
+        prefix_assignments=prefix_assignments,
+    )
+    assert result["status"] == "optimal"
+
+    # 田中(id=1): 前月3日 + 今月で最大4日連続 → 今月は1日目以降2日目は休み
+    tanaka_dates = sorted(
+        a["date"] for a in result["assignments"] if a["staff_id"] == 1
+    )
+    # 4/1に勤務している場合、4/2は休みになるはず
+    if "2026-04-01" in tanaka_dates:
+        assert "2026-04-02" not in tanaka_dates, "Cross-month consecutive limit violated"
