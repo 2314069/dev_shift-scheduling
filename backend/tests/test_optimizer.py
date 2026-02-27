@@ -601,7 +601,7 @@ def test_cross_month_consecutive_days_respected():
     # 4月1日（水）〜7日（火）
     period = SchedulePeriod(id=1, start_date=date(2026, 4, 1), end_date=date(2026, 4, 7))
 
-    # 田中は3月29〜31日（3日間）すでに連続勤務済み。max_consecutive_days=4 なら今月は1日のみ可
+    # 田中は3月29〜31日（3日間）すでに連続勤務済み。max_consecutive_days=4 なら今月は最初の1日だけ可
     prefix_assignments = {
         1: [date(2026, 3, 29), date(2026, 3, 30), date(2026, 3, 31)],
     }
@@ -627,10 +627,25 @@ def test_cross_month_consecutive_days_respected():
     )
     assert result["status"] == "optimal"
 
-    # 田中(id=1): 前月3日 + 今月で最大4日連続 → 今月は1日目以降2日目は休み
-    tanaka_dates = sorted(
-        a["date"] for a in result["assignments"] if a["staff_id"] == 1
+    # 田中の全勤務日（prefix含む）を結合して連続勤務が4日以下であることを確認
+    prefix_dates_set = set(prefix_assignments[1])
+    tanaka_work_dates = sorted(
+        date.fromisoformat(a["date"])
+        for a in result["assignments"]
+        if a["staff_id"] == 1
     )
-    # 4/1に勤務している場合、4/2は休みになるはず
-    if "2026-04-01" in tanaka_dates:
-        assert "2026-04-02" not in tanaka_dates, "Cross-month consecutive limit violated"
+
+    # prefix + 今月の勤務日を全部並べて、max_consecutive_days を超える連続がないか検証
+    all_dates = sorted(prefix_dates_set | set(tanaka_work_dates))
+    if all_dates:
+        max_run = 1
+        current_run = 1
+        for i in range(1, len(all_dates)):
+            if (all_dates[i] - all_dates[i - 1]).days == 1:
+                current_run += 1
+                max_run = max(max_run, current_run)
+            else:
+                current_run = 1
+        assert max_run <= config.max_consecutive_days, (
+            f"Cross-month consecutive limit violated: {max_run} consecutive days (max {config.max_consecutive_days})"
+        )
