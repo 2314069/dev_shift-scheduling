@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-24 (シフトカレンダー機能拡張) | ブランチ: main
+> 最終更新: 2026-02-27 (スタッフ向け閲覧画面・月またぎ連続勤務チェック) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -21,6 +21,7 @@
 | ソルバー設定（制約スイッチ） | `api/solver_config.py` | ✅ 完了 |
 | PuLP + SCIP 最適化エンジン | `optimizer/solver.py` | ✅ 完了 |
 | 最適化失敗時の診断機能 | `optimizer/solver.py` | ✅ 完了 |
+| 月またぎ連続勤務制約 | `optimizer/solver.py`, `services/schedule.py` | ✅ 完了 |
 
 ### フロントエンド (`frontend/`)
 
@@ -35,12 +36,13 @@
 | スタッフ管理テーブル | `components/staff-table.tsx` | ✅ 完了 |
 | 最適化診断パネル | `components/diagnostics-panel.tsx` | ✅ 完了 |
 | 最適化設定パネル | `components/solver-config-panel.tsx` | ✅ 完了 |
+| スタッフ向け閲覧画面（読み取り専用・ハイライト） | `app/view/page.tsx` | ✅ 完了 |
 
 ## テスト状況
 
 ```
-バックエンド: 54 passed (2026-02-24 時点, 診断テスト5件追加)
-フロントエンド: 53 passed (2026-02-24 時点, Vitest + React Testing Library)
+バックエンド: 58 passed (2026-02-27 時点, 月またぎ連勤・リポジトリテスト追加)
+フロントエンド: 53 passed (2026-02-27 時点, Vitest + React Testing Library)
 ```
 
 テスト実行コマンド:
@@ -53,17 +55,17 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| `0cfc619` | feat: add request indicators, work-day totals, and CSV export to shift calendar |
-| `936842e` | chore: update uv.lock for highspy and numpy dependencies |
-| `3f2e54a` | feat: use HiGHS IIS for accurate infeasibility diagnosis |
-| `00a184b` | feat: add demo data seed script and fix CBC solver timeout |
-| `0dbac20` | feat: improve settings page readability for beginners |
+| `d2f1dc4` | feat: inject cross-month prefix_assignments into optimizer |
+| `55de8ec` | test: improve cross-month consecutive test to verify all work dates |
+| `f846bee` | feat: add cross-month consecutive days support to solver |
+| `720edda` | feat: add get_published_period_ending_before to ScheduleRepository |
+| `b34027b` | feat: add staff view page /view for published schedules |
 
 ## TODO / 次のフェーズ候補
 
 ### 短期（工数小・実用性向上）
-- [ ] 公開済みシフト表のスタッフ向け閲覧画面
-- [ ] 月またぎ連続勤務チェック（例: 月末5連勤+月初3連勤=実質8連勤の検出）
+- [x] 公開済みシフト表のスタッフ向け閲覧画面
+- [x] 月またぎ連続勤務チェック（例: 月末5連勤+月初3連勤=実質8連勤の検出）
 
 ### 中期（差別化につながる）
 - [ ] 公平性ダッシュボード（スタッフ別の早番・遅番・土日出勤回数の可視化）
@@ -87,6 +89,8 @@ cd frontend && npm run test
 - [x] PostgreSQL 対応（Vercel + Railway デプロイ設定）
 - [x] シフト表の CSV エクスポート
 - [x] 希望インジケーター・勤務日数合計列（シフトカレンダー拡張）
+- [x] 公開済みシフト表のスタッフ向け閲覧画面（/view ページ・行ハイライト）
+- [x] 月またぎ連続勤務制約（直前公開済み期間の末尾実績を LP ソルバーに注入）
 
 ## 既知の問題・メモ
 
