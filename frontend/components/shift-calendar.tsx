@@ -69,6 +69,7 @@ interface ShiftCalendarProps {
   staffRequests: StaffRequest[];
   isPublished: boolean;
   onAssignmentUpdated: () => void;
+  highlightStaffId?: number;
 }
 
 export function ShiftCalendar({
@@ -82,6 +83,7 @@ export function ShiftCalendar({
   staffRequests,
   isPublished,
   onAssignmentUpdated,
+  highlightStaffId,
 }: ShiftCalendarProps) {
   const [openPopoverKey, setOpenPopoverKey] = useState<string | null>(null);
   const [localAssignments, setLocalAssignments] = useState<ScheduleAssignment[]>(assignments);
@@ -621,7 +623,7 @@ export function ShiftCalendar({
                 ? "text-orange-600 bg-orange-50"
                 : "text-green-700 bg-green-50";
               return (
-                <tr key={staff.id} className="hover:bg-gray-50/50">
+                <tr key={staff.id} className={`hover:bg-gray-50/50 ${highlightStaffId === staff.id ? "bg-yellow-50 ring-1 ring-inset ring-yellow-300" : ""}`}>
                   <td className="sticky left-0 z-10 bg-white border-b border-r px-3 py-1 text-sm font-medium whitespace-nowrap">
                     {staff.name}
                   </td>
