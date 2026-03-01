@@ -13,6 +13,7 @@ from backend.repositories import (
     StaffRequestRepository,
     SolverConfigRepository,
     RoleStaffingRequirementRepository,
+    SkillRepository,
 )
 from backend.schemas import ScheduleResponse
 
@@ -39,6 +40,7 @@ class ScheduleService:
         self._request_repo = StaffRequestRepository(db)
         self._config_repo = SolverConfigRepository(db)
         self._role_req_repo = RoleStaffingRequirementRepository(db)
+        self._skill_repo = SkillRepository(db)
 
     def create_period(self, start_date: date, end_date: date) -> SchedulePeriod:
         return self._schedule_repo.create_period(
@@ -87,6 +89,10 @@ class ScheduleService:
         config = self._config_repo.get_or_create_default()
         role_requirements = self._role_req_repo.list_all()
 
+        # スキル関連データ取得
+        staff_skills_data = self._skill_repo.list_all_staff_skills()
+        skill_requirements_data = self._skill_repo.list_skill_requirements()
+
         # 月またぎ連勤チェック: 直前公開済み期間の末尾勤務実績を取得
         prefix_assignments: dict[int, list] = {}
         prev_period = self._schedule_repo.get_published_period_ending_before(period.start_date)
@@ -107,6 +113,8 @@ class ScheduleService:
             config=config,
             role_requirements=role_requirements,
             prefix_assignments=prefix_assignments if prefix_assignments else None,
+            staff_skills=staff_skills_data if staff_skills_data else None,
+            skill_requirements=skill_requirements_data if skill_requirements_data else None,
         )
 
         diagnostics = result.get("diagnostics", [])

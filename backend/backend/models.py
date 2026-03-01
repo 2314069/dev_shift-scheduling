@@ -110,6 +110,7 @@ class SolverConfigModel(Base):
     enable_min_days_per_week: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     enable_soft_staffing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     enable_reverse_cycle_prohibition: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    enable_skill_staffing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # 重み
     weight_preferred: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
     weight_fairness: Mapped[float] = mapped_column(Float, nullable=False, default=2.0)
