@@ -3,6 +3,7 @@
 import { StaffTable } from "@/components/staff-table";
 import { ShiftSlotTable } from "@/components/shift-slot-table";
 import { StaffingRequirementsTable } from "@/components/staffing-requirements-table";
+import { SkillRequirementsTable } from "@/components/skill-requirements-table";
 import { SolverConfigPanel } from "@/components/solver-config-panel";
 
 export default function SettingsPage() {
@@ -52,6 +53,20 @@ export default function SettingsPage() {
           </p>
         </div>
         <StaffingRequirementsTable />
+      </section>
+
+      <section>
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold bg-muted text-muted-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">+</span>
+            <h2 className="text-xl font-semibold">スキル要件設定</h2>
+          </div>
+          <p className="text-sm text-muted-foreground ml-7">
+            「調理師免許保持者を早番に1名以上」など、スキル・資格による配置条件を設定します。
+            最適化設定で「スキル配置制約を有効にする」をオンにすると反映されます。
+          </p>
+        </div>
+        <SkillRequirementsTable />
       </section>
 
       <section>

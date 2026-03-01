@@ -109,6 +109,11 @@ const TOGGLE_CONSTRAINTS: ToggleConstraint[] = [
     label: "逆循環シフトを禁止する",
     description: "遅番の翌日に早番を入れることを禁止します（例: 15時始め→翌日9時始め）",
   },
+  {
+    key: "enable_skill_staffing",
+    label: "スキル配置制約を有効にする",
+    description: "「設定 > スキル要件」で登録した条件を満たすようにシフトを作成します",
+  },
 ];
 
 export function SolverConfigPanel() {

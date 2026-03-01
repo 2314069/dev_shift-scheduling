@@ -76,8 +76,23 @@ export interface SolverConfig {
   enable_min_days_per_week: boolean;
   enable_soft_staffing: boolean;
   enable_reverse_cycle_prohibition: boolean;
+  enable_skill_staffing: boolean;
   weight_preferred: number;
   weight_fairness: number;
   weight_weekend_fairness: number;
   weight_soft_staffing: number;
+}
+
+export interface StaffSkill {
+  id: number;
+  staff_id: number;
+  skill: string;
+}
+
+export interface SkillRequirement {
+  id: number;
+  shift_slot_id: number;
+  day_type: string;
+  skill: string;
+  min_count: number;
 }
