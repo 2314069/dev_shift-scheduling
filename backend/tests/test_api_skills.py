@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_staff_skills_crud(client):
     """スタッフスキルの CRUD テスト"""
     # スタッフを作成

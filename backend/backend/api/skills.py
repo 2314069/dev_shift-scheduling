@@ -26,5 +26,5 @@ def add_staff_skill(staff_id: int, data: StaffSkillCreate, db: Session = Depends
 @router.delete("/{staff_id}/skills/{skill_id}", status_code=204)
 def delete_staff_skill(staff_id: int, skill_id: int, db: Session = Depends(get_db)):
     repo = SkillRepository(db)
-    if not repo.delete_skill(skill_id):
+    if not repo.delete_skill(skill_id, staff_id=staff_id):
         raise HTTPException(status_code=404, detail="Skill not found")

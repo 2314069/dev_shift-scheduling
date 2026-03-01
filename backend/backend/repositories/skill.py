@@ -26,10 +26,12 @@ class SkillRepository:
         self.db.refresh(model)
         return StaffSkill(id=model.id, staff_id=model.staff_id, skill=model.skill)
 
-    def delete_skill(self, skill_id: int) -> bool:
+    def delete_skill(self, skill_id: int, staff_id: int | None = None) -> bool:
         model = self.db.get(StaffSkillModel, skill_id)
         if not model:
             return False
+        if staff_id is not None and model.staff_id != staff_id:
+            return False  # 所有権の検証
         self.db.delete(model)
         self.db.commit()
         return True
