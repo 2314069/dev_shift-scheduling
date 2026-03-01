@@ -75,6 +75,7 @@ export interface SolverConfig {
   enable_role_staffing: boolean;
   enable_min_days_per_week: boolean;
   enable_soft_staffing: boolean;
+  enable_reverse_cycle_prohibition: boolean;
   weight_preferred: number;
   weight_fairness: number;
   weight_weekend_fairness: number;
