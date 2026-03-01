@@ -40,3 +40,15 @@ def _run_migrations(engine_instance):
                 )
             )
             conn.commit()
+
+        # solver_config に enable_reverse_cycle_prohibition がなければ追加
+        result = conn.execute(text("PRAGMA table_info(solver_config)"))
+        columns = {row[1] for row in result}
+        if "enable_reverse_cycle_prohibition" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE solver_config ADD COLUMN enable_reverse_cycle_prohibition "
+                    "BOOLEAN NOT NULL DEFAULT 0"
+                )
+            )
+            conn.commit()

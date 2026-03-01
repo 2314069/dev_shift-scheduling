@@ -157,6 +157,7 @@ class SolverConfigUpdate(BaseModel):
     enable_role_staffing: bool | None = None
     enable_min_days_per_week: bool | None = None
     enable_soft_staffing: bool | None = None
+    enable_reverse_cycle_prohibition: bool | None = None
     weight_preferred: float | None = None
     weight_fairness: float | None = None
     weight_weekend_fairness: float | None = None
@@ -175,6 +176,7 @@ class SolverConfigResponse(BaseModel):
     enable_role_staffing: bool
     enable_min_days_per_week: bool
     enable_soft_staffing: bool
+    enable_reverse_cycle_prohibition: bool
     weight_preferred: float
     weight_fairness: float
     weight_weekend_fairness: float

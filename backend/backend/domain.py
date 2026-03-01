@@ -68,6 +68,7 @@ class SolverConfig:
     enable_role_staffing: bool = False
     enable_min_days_per_week: bool = False
     enable_soft_staffing: bool = False
+    enable_reverse_cycle_prohibition: bool = False
     # 重み
     weight_preferred: float = 3.0
     weight_fairness: float = 2.0

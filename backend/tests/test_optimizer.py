@@ -649,3 +649,46 @@ def test_cross_month_consecutive_days_respected():
         assert max_run <= config.max_consecutive_days, (
             f"Cross-month consecutive limit violated: {max_run} consecutive days (max {config.max_consecutive_days})"
         )
+
+
+# === B7: 逆循環禁止 ===
+
+def test_reverse_cycle_prohibited():
+    """逆循環禁止制約: 遅番(15:00始) → 翌日早番(9:00始) の組み合わせを禁止"""
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=5),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=5),
+    ]
+    slots = [
+        ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0)),
+        ShiftSlot(id=2, name="遅番", start_time=time(15, 0), end_time=time(23, 0)),
+    ]
+    requirements = [
+        StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=1),
+        StaffingRequirement(id=2, shift_slot_id=2, day_type="weekday", min_count=1),
+    ]
+    period = SchedulePeriod(
+        id=1,
+        start_date=date(2026, 3, 2),  # Monday
+        end_date=date(2026, 3, 3),    # Tuesday (2 days)
+    )
+    config = SolverConfig(
+        id=1,
+        enable_reverse_cycle_prohibition=True,
+    )
+
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+    assert result["status"] == "optimal"
+
+    # 各スタッフについて逆循環（遅番→翌日早番）がないことを確認
+    by_staff_date: dict[tuple[int, str], int] = {}
+    for a in result["assignments"]:
+        by_staff_date[(a["staff_id"], a["date"])] = a["shift_slot_id"]
+
+    d1_str = "2026-03-02"
+    d2_str = "2026-03-03"
+    for s in staff_list:
+        d1_slot = by_staff_date.get((s.id, d1_str))
+        d2_slot = by_staff_date.get((s.id, d2_str))
+        if d1_slot == 2 and d2_slot == 1:  # 遅番 → 早番
+            pytest.fail(f"スタッフ {s.name}: 逆循環が発生（遅番→早番）")

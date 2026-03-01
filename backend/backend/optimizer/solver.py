@@ -677,6 +677,24 @@ def solve_schedule(
                         >= s.min_days_per_week
                     ), f"mindays_{s.id}_{week_start.strftime('%Y%m%d')}"
 
+    # B7: 逆循環禁止（遅番翌日の早番を禁止）
+    # 翌日の開始時刻 < 前日の開始時刻 となる組み合わせを禁止する
+    if config.enable_reverse_cycle_prohibition:
+        reverse_pairs = [
+            (t_a.id, t_b.id)
+            for t_a in slots
+            for t_b in slots
+            if t_b.start_time < t_a.start_time
+        ]
+        if reverse_pairs:
+            for s in staff_list:
+                for i in range(len(dates) - 1):
+                    d1, d2 = dates[i], dates[i + 1]
+                    for t_a_id, t_b_id in reverse_pairs:
+                        prob += (
+                            x[(s.id, d1, t_a_id)] + x[(s.id, d2, t_b_id)] <= 1
+                        ), f"revcycle_{s.id}_{d1.strftime('%Y%m%d')}_{t_a_id}_{t_b_id}"
+
     # === 求解 ===
     _used_highs = False
     try:
