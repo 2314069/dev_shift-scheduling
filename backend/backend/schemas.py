@@ -201,3 +201,34 @@ class RoleStaffingRequirementResponse(BaseModel):
     min_count: int
 
     model_config = {"from_attributes": True}
+
+
+# --- StaffSkill ---
+class StaffSkillCreate(BaseModel):
+    skill: str
+
+
+class StaffSkillResponse(BaseModel):
+    id: int
+    staff_id: int
+    skill: str
+
+    model_config = {"from_attributes": True}
+
+
+# --- SkillRequirement ---
+class SkillRequirementCreate(BaseModel):
+    shift_slot_id: int
+    day_type: str
+    skill: str
+    min_count: int
+
+
+class SkillRequirementResponse(BaseModel):
+    id: int
+    shift_slot_id: int
+    day_type: str
+    skill: str
+    min_count: int
+
+    model_config = {"from_attributes": True}

@@ -86,6 +86,22 @@ class RoleStaffingRequirement:
 
 
 @dataclass
+class StaffSkill:
+    id: int
+    staff_id: int
+    skill: str
+
+
+@dataclass
+class SkillRequirement:
+    id: int
+    shift_slot_id: int
+    day_type: str
+    skill: str
+    min_count: int
+
+
+@dataclass
 class DiagnosticItem:
     constraint: str    # "C2_staffing", "C3_unavailable", etc.
     severity: str      # "error" | "warning"

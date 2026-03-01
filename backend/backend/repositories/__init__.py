@@ -5,6 +5,7 @@ from backend.repositories.staff_request import StaffRequestRepository
 from backend.repositories.schedule import ScheduleRepository
 from backend.repositories.solver_config import SolverConfigRepository
 from backend.repositories.role_staffing_requirement import RoleStaffingRequirementRepository
+from backend.repositories.skill import SkillRepository
 
 __all__ = [
     "StaffRepository",
@@ -14,4 +15,5 @@ __all__ = [
     "ScheduleRepository",
     "SolverConfigRepository",
     "RoleStaffingRequirementRepository",
+    "SkillRepository",
 ]

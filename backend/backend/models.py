@@ -129,3 +129,21 @@ class RoleStaffingRequirementModel(Base):
     min_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     shift_slot: Mapped["ShiftSlotModel"] = relationship()
+
+
+class StaffSkillModel(Base):
+    __tablename__ = "staff_skills"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
+    skill: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class SkillRequirementModel(Base):
+    __tablename__ = "skill_requirements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shift_slot_id: Mapped[int] = mapped_column(ForeignKey("shift_slots.id"), nullable=False)
+    day_type: Mapped[str] = mapped_column(String, nullable=False)
+    skill: Mapped[str] = mapped_column(String, nullable=False)
+    min_count: Mapped[int] = mapped_column(Integer, nullable=False)
