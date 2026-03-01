@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-02-27 (スタッフ向け閲覧画面・月またぎ連続勤務チェック) | ブランチ: main
+> 最終更新: 2026-03-01 (逆循環シフト禁止制約・スキル資格配置制約) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -22,6 +22,8 @@
 | PuLP + SCIP 最適化エンジン | `optimizer/solver.py` | ✅ 完了 |
 | 最適化失敗時の診断機能 | `optimizer/solver.py` | ✅ 完了 |
 | 月またぎ連続勤務制約 | `optimizer/solver.py`, `services/schedule.py` | ✅ 完了 |
+| 逆循環シフト禁止制約 | `optimizer/solver.py`, `models.py`, `domain.py` | ✅ 完了 |
+| スキル・資格配置制約 | `optimizer/solver.py`, `api/skills.py`, `api/skill_requirements.py`, `repositories/skill.py` | ✅ 完了 |
 
 ### フロントエンド (`frontend/`)
 
@@ -37,12 +39,13 @@
 | 最適化診断パネル | `components/diagnostics-panel.tsx` | ✅ 完了 |
 | 最適化設定パネル | `components/solver-config-panel.tsx` | ✅ 完了 |
 | スタッフ向け閲覧画面（読み取り専用・ハイライト） | `app/view/page.tsx` | ✅ 完了 |
+| スキル要件設定画面 | `components/skill-requirements-table.tsx`, `app/settings/page.tsx` | ✅ 完了 |
 
 ## テスト状況
 
 ```
-バックエンド: 58 passed (2026-02-27 時点, 月またぎ連勤・リポジトリテスト追加)
-フロントエンド: 53 passed (2026-02-27 時点, Vitest + React Testing Library)
+バックエンド: 63 passed (2026-03-01 時点, 逆循環シフト禁止・スキル配置制約テスト追加)
+フロントエンド: 53 passed (2026-03-01 時点, Vitest + React Testing Library)
 ```
 
 テスト実行コマンド:
@@ -55,11 +58,11 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| `d2f1dc4` | feat: inject cross-month prefix_assignments into optimizer |
-| `55de8ec` | test: improve cross-month consecutive test to verify all work dates |
-| `f846bee` | feat: add cross-month consecutive days support to solver |
-| `720edda` | feat: add get_published_period_ending_before to ScheduleRepository |
-| `b34027b` | feat: add staff view page /view for published schedules |
+| `1352845` | feat: add skill staffing UI to settings page and solver config panel |
+| `94cbf4d` | feat: add skill staffing constraint to solver with enable_skill_staffing toggle |
+| `59ed138` | fix: validate staff ownership in delete skill endpoint |
+| `5266c9f` | feat: add staff skills and skill requirements models, repos, and APIs |
+| `51c521c` | feat: add reverse cycle prohibition toggle to frontend |
 
 ## TODO / 次のフェーズ候補
 
@@ -71,8 +74,8 @@ cd frontend && npm run test
 - [ ] 公平性ダッシュボード（スタッフ別の早番・遅番・土日出勤回数の可視化）
 - [ ] 業種別プリセット制約テンプレート（飲食向け・介護向けなど）
 - [ ] 充足不能診断の深化（「このスタッフを追加すると解決」まで提案）
-- [ ] 逆循環シフト禁止制約（遅番翌日早番の禁止）
-- [ ] スキル・資格の配置制約（例: 調理師免許保持者を各シフトに1名以上）
+- [x] 逆循環シフト禁止制約（遅番翌日早番の禁止）
+- [x] スキル・資格の配置制約（例: 調理師免許保持者を各シフトに1名以上）
 
 ### 長期・要検討
 - [ ] シフト確定通知メール（公開時にスタッフへ自動送信）
