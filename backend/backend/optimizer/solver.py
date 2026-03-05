@@ -9,10 +9,12 @@ from backend.domain import (
     RoleStaffingRequirement,
     SchedulePeriod,
     ShiftSlot,
+    SkillRequirement,
     SolverConfig,
     Staff,
     StaffingRequirement,
     StaffRequest,
+    StaffSkill,
 )
 
 
@@ -437,6 +439,8 @@ def solve_schedule(
     role_requirements: list[RoleStaffingRequirement] | None = None,
     _skip_diagnostics: bool = False,
     prefix_assignments: dict[int, list] | None = None,
+    staff_skills: list[StaffSkill] | None = None,
+    skill_requirements: list[SkillRequirement] | None = None,
 ) -> dict:
     if config is None:
         config = _default_config()
@@ -676,6 +680,42 @@ def solve_schedule(
                         )
                         >= s.min_days_per_week
                     ), f"mindays_{s.id}_{week_start.strftime('%Y%m%d')}"
+
+    # B7: 逆循環禁止（遅番翌日の早番を禁止）
+    # 翌日の開始時刻 < 前日の開始時刻 となる組み合わせを禁止する
+    if config.enable_reverse_cycle_prohibition:
+        reverse_pairs = [
+            (t_a.id, t_b.id)
+            for t_a in slots
+            for t_b in slots
+            if t_b.start_time < t_a.start_time
+        ]
+        if reverse_pairs:
+            for s in staff_list:
+                for i in range(len(dates) - 1):
+                    d1, d2 = dates[i], dates[i + 1]
+                    for t_a_id, t_b_id in reverse_pairs:
+                        prob += (
+                            x[(s.id, d1, t_a_id)] + x[(s.id, d2, t_b_id)] <= 1
+                        ), f"revcycle_{s.id}_{d1.strftime('%Y%m%d')}_{t_a_id}_{t_b_id}"
+
+    # B8: スキル配置制約（有資格者を指定シフトに最低人数確保）
+    if config.enable_skill_staffing and skill_requirements:
+        # staff_id → スキルセットのマップ構築
+        skills_map: dict[int, set[str]] = {}
+        for ss in (staff_skills or []):
+            skills_map.setdefault(ss.staff_id, set()).add(ss.skill)
+        for sr in skill_requirements:
+            eligible = [s for s in staff_list if sr.skill in skills_map.get(s.id, set())]
+            if not eligible:
+                # 有資格者がいない場合は制約をスキップ（infeasibleを避けるため）
+                continue
+            for d in dates:
+                if _get_day_type(d) == sr.day_type:
+                    prob += (
+                        lpSum(x[(s.id, d, sr.shift_slot_id)] for s in eligible)
+                        >= sr.min_count
+                    ), f"skill_{sr.id}_{d.strftime('%Y%m%d')}_{sr.shift_slot_id}"
 
     # === 求解 ===
     _used_highs = False

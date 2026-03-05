@@ -8,6 +8,8 @@ from backend.api.requests import router as requests_router
 from backend.api.role_staffing_requirements import router as role_staffing_requirements_router
 from backend.api.schedules import router as schedules_router
 from backend.api.shift_slots import router as shift_slots_router
+from backend.api.skill_requirements import router as skill_requirements_router
+from backend.api.skills import router as skills_router
 from backend.api.solver_config import router as solver_config_router
 from backend.api.staff import router as staff_router
 from backend.api.staffing_requirements import router as staffing_requirements_router
@@ -37,6 +39,8 @@ app.include_router(requests_router)
 app.include_router(schedules_router)
 app.include_router(solver_config_router)
 app.include_router(role_staffing_requirements_router)
+app.include_router(skills_router)
+app.include_router(skill_requirements_router)
 
 
 @app.get("/api/health")

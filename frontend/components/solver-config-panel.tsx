@@ -104,6 +104,16 @@ const TOGGLE_CONSTRAINTS: ToggleConstraint[] = [
     label: "スタッフの週最低勤務日数を守る",
     description: "各スタッフに設定した「週の最低勤務日数」を下回らないようにシフトを作成します",
   },
+  {
+    key: "enable_reverse_cycle_prohibition",
+    label: "逆循環シフトを禁止する",
+    description: "遅番の翌日に早番を入れることを禁止します（例: 15時始め→翌日9時始め）",
+  },
+  {
+    key: "enable_skill_staffing",
+    label: "スキル配置制約を有効にする",
+    description: "「設定 > スキル要件」で登録した条件を満たすようにシフトを作成します",
+  },
 ];
 
 export function SolverConfigPanel() {

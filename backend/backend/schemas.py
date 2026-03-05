@@ -157,6 +157,8 @@ class SolverConfigUpdate(BaseModel):
     enable_role_staffing: bool | None = None
     enable_min_days_per_week: bool | None = None
     enable_soft_staffing: bool | None = None
+    enable_reverse_cycle_prohibition: bool | None = None
+    enable_skill_staffing: bool | None = None
     weight_preferred: float | None = None
     weight_fairness: float | None = None
     weight_weekend_fairness: float | None = None
@@ -175,6 +177,8 @@ class SolverConfigResponse(BaseModel):
     enable_role_staffing: bool
     enable_min_days_per_week: bool
     enable_soft_staffing: bool
+    enable_reverse_cycle_prohibition: bool
+    enable_skill_staffing: bool
     weight_preferred: float
     weight_fairness: float
     weight_weekend_fairness: float
@@ -196,6 +200,37 @@ class RoleStaffingRequirementResponse(BaseModel):
     shift_slot_id: int
     day_type: str
     role: str
+    min_count: int
+
+    model_config = {"from_attributes": True}
+
+
+# --- StaffSkill ---
+class StaffSkillCreate(BaseModel):
+    skill: str
+
+
+class StaffSkillResponse(BaseModel):
+    id: int
+    staff_id: int
+    skill: str
+
+    model_config = {"from_attributes": True}
+
+
+# --- SkillRequirement ---
+class SkillRequirementCreate(BaseModel):
+    shift_slot_id: int
+    day_type: str
+    skill: str
+    min_count: int
+
+
+class SkillRequirementResponse(BaseModel):
+    id: int
+    shift_slot_id: int
+    day_type: str
+    skill: str
     min_count: int
 
     model_config = {"from_attributes": True}

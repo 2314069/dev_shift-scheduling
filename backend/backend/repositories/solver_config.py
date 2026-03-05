@@ -22,6 +22,8 @@ class SolverConfigRepository:
             enable_role_staffing=model.enable_role_staffing,
             enable_min_days_per_week=model.enable_min_days_per_week,
             enable_soft_staffing=model.enable_soft_staffing,
+            enable_reverse_cycle_prohibition=model.enable_reverse_cycle_prohibition,
+            enable_skill_staffing=model.enable_skill_staffing,
             weight_preferred=model.weight_preferred,
             weight_fairness=model.weight_fairness,
             weight_weekend_fairness=model.weight_weekend_fairness,

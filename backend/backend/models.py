@@ -109,6 +109,8 @@ class SolverConfigModel(Base):
     enable_role_staffing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     enable_min_days_per_week: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     enable_soft_staffing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    enable_reverse_cycle_prohibition: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    enable_skill_staffing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # 重み
     weight_preferred: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
     weight_fairness: Mapped[float] = mapped_column(Float, nullable=False, default=2.0)
@@ -128,3 +130,21 @@ class RoleStaffingRequirementModel(Base):
     min_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     shift_slot: Mapped["ShiftSlotModel"] = relationship()
+
+
+class StaffSkillModel(Base):
+    __tablename__ = "staff_skills"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
+    skill: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class SkillRequirementModel(Base):
+    __tablename__ = "skill_requirements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shift_slot_id: Mapped[int] = mapped_column(ForeignKey("shift_slots.id"), nullable=False)
+    day_type: Mapped[str] = mapped_column(String, nullable=False)
+    skill: Mapped[str] = mapped_column(String, nullable=False)
+    min_count: Mapped[int] = mapped_column(Integer, nullable=False)

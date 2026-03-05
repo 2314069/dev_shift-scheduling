@@ -100,6 +100,8 @@ export function makeSolverConfig(
     enable_role_staffing: false,
     enable_min_days_per_week: false,
     enable_soft_staffing: false,
+    enable_reverse_cycle_prohibition: false,
+    enable_skill_staffing: false,
     weight_preferred: 3.0,
     weight_fairness: 2.0,
     weight_weekend_fairness: 2.0,

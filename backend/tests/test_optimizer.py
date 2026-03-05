@@ -5,12 +5,14 @@ from collections import Counter, defaultdict
 from backend.domain import (
     DiagnosticItem,
     RoleStaffingRequirement,
+    SkillRequirement,
     SolverConfig,
     Staff,
     ShiftSlot,
     StaffRequest,
     SchedulePeriod,
     StaffingRequirement,
+    StaffSkill,
 )
 from backend.optimizer.solver import solve_schedule
 
@@ -649,3 +651,89 @@ def test_cross_month_consecutive_days_respected():
         assert max_run <= config.max_consecutive_days, (
             f"Cross-month consecutive limit violated: {max_run} consecutive days (max {config.max_consecutive_days})"
         )
+
+
+# === B7: 逆循環禁止 ===
+
+def test_reverse_cycle_prohibited():
+    """逆循環禁止制約: 遅番(15:00始) → 翌日早番(9:00始) の組み合わせを禁止"""
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=5),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=5),
+    ]
+    slots = [
+        ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0)),
+        ShiftSlot(id=2, name="遅番", start_time=time(15, 0), end_time=time(23, 0)),
+    ]
+    requirements = [
+        StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=1),
+        StaffingRequirement(id=2, shift_slot_id=2, day_type="weekday", min_count=1),
+    ]
+    period = SchedulePeriod(
+        id=1,
+        start_date=date(2026, 3, 2),  # Monday
+        end_date=date(2026, 3, 3),    # Tuesday (2 days)
+    )
+    config = SolverConfig(
+        id=1,
+        enable_reverse_cycle_prohibition=True,
+    )
+
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+    assert result["status"] == "optimal"
+
+    # 各スタッフについて逆循環（遅番→翌日早番）がないことを確認
+    by_staff_date: dict[tuple[int, str], int] = {}
+    for a in result["assignments"]:
+        by_staff_date[(a["staff_id"], a["date"])] = a["shift_slot_id"]
+
+    d1_str = "2026-03-02"
+    d2_str = "2026-03-03"
+    for s in staff_list:
+        d1_slot = by_staff_date.get((s.id, d1_str))
+        d2_slot = by_staff_date.get((s.id, d2_str))
+        if d1_slot == 2 and d2_slot == 1:  # 遅番 → 早番
+            pytest.fail(f"スタッフ {s.name}: 逆循環が発生（遅番→早番）")
+
+
+# === B8: スキル配置制約 ===
+
+def test_skill_staffing_constraint():
+    """スキル配置制約: 調理師免許保持者を早番に1名以上配置"""
+    staff_list = [
+        Staff(id=1, name="田中", role="調理師", max_days_per_week=5),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=5),
+        Staff(id=3, name="鈴木", role="一般", max_days_per_week=5),
+    ]
+    slots = [
+        ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0)),
+    ]
+    requirements = [
+        StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2),
+    ]
+    period = SchedulePeriod(
+        id=1,
+        start_date=date(2026, 3, 2),  # Monday
+        end_date=date(2026, 3, 4),    # Wednesday
+    )
+    # 田中だけが調理師免許を持つ
+    staff_skills = [
+        StaffSkill(id=1, staff_id=1, skill="調理師免許"),
+    ]
+    skill_requirements = [
+        SkillRequirement(id=1, shift_slot_id=1, day_type="weekday", skill="調理師免許", min_count=1),
+    ]
+    config = SolverConfig(id=1, enable_skill_staffing=True)
+
+    result = solve_schedule(
+        period, staff_list, slots, requirements, [],
+        config=config,
+        staff_skills=staff_skills,
+        skill_requirements=skill_requirements,
+    )
+    assert result["status"] == "optimal"
+
+    # 各平日（早番）に田中（調理師免許保持）が必ず入っていることを確認
+    tanaka_dates = {a["date"] for a in result["assignments"] if a["staff_id"] == 1}
+    for d_str in ["2026-03-02", "2026-03-03", "2026-03-04"]:
+        assert d_str in tanaka_dates, f"{d_str} に調理師免許保持者が配置されていない"
