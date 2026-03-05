@@ -49,6 +49,12 @@ export default function RootLayout({
                 希望入力
               </Link>
               <Link
+                href="/view"
+                className="text-sm font-medium hover:text-primary"
+              >
+                シフト確認
+              </Link>
+              <Link
                 href="/schedule"
                 className="text-sm font-medium hover:text-primary"
               >

@@ -436,6 +436,7 @@ def solve_schedule(
     config: SolverConfig | None = None,
     role_requirements: list[RoleStaffingRequirement] | None = None,
     _skip_diagnostics: bool = False,
+    prefix_assignments: dict[int, list] | None = None,
 ) -> dict:
     if config is None:
         config = _default_config()
@@ -586,6 +587,7 @@ def solve_schedule(
                     ), f"unavail_{s.id}_{d.strftime('%Y%m%d')}_{t.id}"
 
     # 制約4: 連勤制限
+    _prefix = prefix_assignments or {}
     for s in staff_list:
         for i in range(len(dates) - config.max_consecutive_days):
             window = dates[i : i + config.max_consecutive_days + 1]
@@ -593,6 +595,31 @@ def solve_schedule(
                 lpSum(x[(s.id, d, t.id)] for d in window for t in slots)
                 <= config.max_consecutive_days
             ), f"consec_{s.id}_{dates[i].strftime('%Y%m%d')}"
+
+    # 月またぎ連勤制約: 期間先頭 max_consecutive_days 日間に prefix を加算
+    if _prefix:
+        for s in staff_list:
+            prefix_dates = _prefix.get(s.id, [])
+            if not prefix_dates:
+                continue
+            prefix_set = set(prefix_dates)
+            # dates[0] の前日から遡って連続する勤務日数を数える
+            prefix_count = 0
+            check_date = dates[0] - timedelta(days=1)
+            while check_date in prefix_set:
+                prefix_count += 1
+                check_date -= timedelta(days=1)
+                if prefix_count >= config.max_consecutive_days:
+                    break
+            if prefix_count == 0:
+                continue
+            # 今期の先頭 1〜max_consecutive_days 日のウィンドウ（prefix_count 分が確定済み）
+            for i in range(min(config.max_consecutive_days, len(dates))):
+                current_window = dates[: i + 1]
+                prob += (
+                    prefix_count + lpSum(x[(s.id, d, t.id)] for d in current_window for t in slots)
+                    <= config.max_consecutive_days
+                ), f"consec_prefix_{s.id}_{i}"
 
     # 制約5: 週あたり勤務上限
     for s in staff_list:
