@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-07 (公平性ダッシュボード・充足不能診断の深化・業種別プリセット) | ブランチ: main
+> 最終更新: 2026-04-07 (技術設計書追加・Next.jsバージョン修正・プリセット表補完) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -61,13 +61,11 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
-| (latest) | feat: add industry preset templates to solver config panel |
-| (prev)   | feat: deepen infeasibility diagnostics with staff addition suggestions |
-| (prev)   | feat: add fairness dashboard (early/late/weekend shift visualization) |
-| `1352845` | feat: add skill staffing UI to settings page and solver config panel |
-| `94cbf4d` | feat: add skill staffing constraint to solver with enable_skill_staffing toggle |
-| `59ed138` | fix: validate staff ownership in delete skill endpoint |
-| `5266c9f` | feat: add staff skills and skill requirements models, repos, and APIs |
+| `798d5ea` | docs: add technical design document and fix Next.js version / preset table |
+| `9da7bf7` | feat: add industry preset templates to solver config panel |
+| `5069f41` | feat: add fairness dashboard (early/late/weekend shift visualization) |
+| `b663463` | feat: add reverse cycle prohibition and skill staffing constraints |
+| `09e9e7f` | feat: staff view page and cross-month consecutive days constraint |
 
 ## TODO / 次のフェーズ候補
 
