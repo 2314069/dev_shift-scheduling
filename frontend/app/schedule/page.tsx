@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShiftCalendar } from "@/components/shift-calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
+import { FairnessDashboard } from "@/components/fairness-dashboard";
 
 export default function SchedulePage() {
   // Period management state
@@ -441,6 +442,11 @@ export default function SchedulePage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Fairness Dashboard */}
+      {selectedPeriodId && (
+        <FairnessDashboard periodId={Number(selectedPeriodId)} />
       )}
 
       {/* Publish confirm dialog */}

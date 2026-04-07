@@ -67,4 +67,56 @@ describe("DiagnosticsPanel", () => {
     expect(items[0].textContent).toBe("エラーメッセージ");
     expect(items[1].textContent).toBe("警告メッセージ");
   });
+
+  it("does not render suggestions box when suggestions is absent", () => {
+    const diagnostic = makeDiagnostic({ message: "提案なし" });
+    render(<DiagnosticsPanel diagnostics={[diagnostic]} />);
+
+    expect(screen.queryByText("解決の提案")).not.toBeInTheDocument();
+  });
+
+  it("does not render suggestions box when suggestions is empty array", () => {
+    const diagnostic = makeDiagnostic({ message: "空の提案", suggestions: [] });
+    render(<DiagnosticsPanel diagnostics={[diagnostic]} />);
+
+    expect(screen.queryByText("解決の提案")).not.toBeInTheDocument();
+  });
+
+  it("renders suggestions in green box when suggestions are present", () => {
+    const diagnostic = makeDiagnostic({
+      message: "人数不足",
+      suggestions: ["スタッフを追加してください", "シフト枠を減らしてください"],
+    });
+    render(<DiagnosticsPanel diagnostics={[diagnostic]} />);
+
+    expect(screen.getByText("解決の提案")).toBeInTheDocument();
+    expect(screen.getByText("• スタッフを追加してください")).toBeInTheDocument();
+    expect(screen.getByText("• シフト枠を減らしてください")).toBeInTheDocument();
+
+    const box = screen.getByText("解決の提案").closest("[class*='bg-green']");
+    expect(box).toBeTruthy();
+  });
+
+  it("renders both details and suggestions when both are present", async () => {
+    const diagnostic = makeDiagnostic({
+      message: "複合制約違反",
+      details: ["詳細情報A"],
+      suggestions: ["提案A"],
+    });
+    render(<DiagnosticsPanel diagnostics={[diagnostic]} />);
+
+    // 詳細は折りたたみで最初は非表示
+    expect(screen.queryByText("詳細情報A")).not.toBeInTheDocument();
+
+    // 提案は常に表示
+    expect(screen.getByText("解決の提案")).toBeInTheDocument();
+    expect(screen.getByText("• 提案A")).toBeInTheDocument();
+
+    // 詳細を展開すると表示される
+    await userEvent.click(screen.getByText("詳細を表示"));
+    expect(screen.getByText("詳細情報A")).toBeInTheDocument();
+
+    // 両方同時に表示されている
+    expect(screen.getByText("• 提案A")).toBeInTheDocument();
+  });
 });

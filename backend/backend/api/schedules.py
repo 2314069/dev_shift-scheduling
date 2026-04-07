@@ -81,6 +81,7 @@ def optimize_schedule(period_id: int, db: Session = Depends(get_db)):
                 severity=d.severity,
                 message=d.message,
                 details=d.details,
+                suggestions=d.suggestions,
             )
             for d in result.diagnostics
         ],

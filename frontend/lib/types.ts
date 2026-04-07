@@ -54,6 +54,7 @@ export interface DiagnosticItem {
   severity: "error" | "warning";
   message: string;
   details?: string[];
+  suggestions?: string[];
 }
 
 export interface OptimizeResponse {
@@ -95,4 +96,26 @@ export interface SkillRequirement {
   day_type: string;
   skill: string;
   min_count: number;
+}
+
+export interface StaffFairnessMetrics {
+  staff_id: number;
+  staff_name: string;
+  total_shifts: number;
+  early_shifts: number;
+  late_shifts: number;
+  other_shifts: number;
+  weekend_shifts: number;
+}
+
+export interface FairnessSummary {
+  avg_total: number;
+  avg_early: number;
+  avg_late: number;
+  avg_weekend: number;
+}
+
+export interface FairnessDashboardData {
+  staff_metrics: StaffFairnessMetrics[];
+  summary: FairnessSummary;
 }

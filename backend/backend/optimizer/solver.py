@@ -77,6 +77,11 @@ def _presolve_checks(
         req_map[(r.shift_slot_id, r.day_type)] = r.min_count
 
     # 日別・シフト枠別の利用可能人数 vs 必要人数
+    # C2（不可日なし）と C3（不可日あり）を集約するための中間データ
+    # shortage_records: (slot_name, deficit) のリスト
+    c2_shortage_records: list[tuple[date, str, int, int, int]] = []  # (date, slot_name, available, min_count, deficit)
+    c3_shortage_records: list[tuple[date, str, int, int, int]] = []  # (date, slot_name, available, min_count, deficit)
+
     for d in dates:
         day_type = _get_day_type(d)
         for t in slots:
@@ -88,18 +93,99 @@ def _presolve_checks(
             )
             available = len(staff_list) - unavailable_on_date
             if available < min_count:
+                deficit = min_count - available
                 if unavailable_on_date > 0:
-                    diagnostics.append(DiagnosticItem(
-                        constraint="C3_unavailable",
-                        severity="error",
-                        message=f"{d.isoformat()} のシフト「{t.name}」で不可日により利用可能人数({available}人)が必要人数({min_count}人)に不足しています。不可日の登録を見直してください。",
-                    ))
+                    c3_shortage_records.append((d, t.name, available, min_count, deficit))
                 else:
-                    diagnostics.append(DiagnosticItem(
-                        constraint="C2_staffing",
-                        severity="error",
-                        message=f"{d.isoformat()} のシフト「{t.name}」で利用可能人数({available}人)が必要人数({min_count}人)に不足しています。",
-                    ))
+                    c2_shortage_records.append((d, t.name, available, min_count, deficit))
+
+    # C2_staffing: 不足日程を1件に集約
+    if c2_shortage_records:
+        num_shortage_days = len(c2_shortage_records)
+
+        # details: 最大10件の不足日程詳細
+        details_lines: list[str] = []
+        for d, slot_name, available, min_count, deficit in c2_shortage_records[:10]:
+            details_lines.append(
+                f"{d.strftime('%m/%d')} {slot_name}: 必要{min_count}人、利用可能{available}人（{deficit}人不足）"
+            )
+        if num_shortage_days > 10:
+            details_lines.append(f"...他{num_shortage_days - 10}日")
+
+        # suggestions: シフト枠ごとの最大不足人数から提案メッセージを生成
+        slot_max_deficit: dict[str, int] = {}
+        for _, slot_name, _, _, deficit in c2_shortage_records:
+            slot_max_deficit[slot_name] = max(slot_max_deficit.get(slot_name, 0), deficit)
+        suggestions: list[str] = []
+        for slot_name, max_def in sorted(slot_max_deficit.items()):
+            suggestions.append(
+                f"「{slot_name}」シフトに対応できるスタッフを最低{max_def}人追加することで不足を解消できる可能性があります"
+            )
+
+        diagnostics.append(DiagnosticItem(
+            constraint="C2_staffing",
+            severity="error",
+            message=f"{num_shortage_days}日間でスタッフが不足しています。",
+            details=details_lines,
+            suggestions=suggestions,
+        ))
+
+    # C3_unavailable: 不可日による不足を1件に集約
+    if c3_shortage_records:
+        num_shortage_days = len(c3_shortage_records)
+
+        # details: 最大10件の不足日程詳細
+        details_lines = []
+        for d, slot_name, available, min_count, deficit in c3_shortage_records[:10]:
+            details_lines.append(
+                f"{d.strftime('%m/%d')} {slot_name}: 必要{min_count}人、利用可能{available}人（{deficit}人不足）"
+            )
+        if num_shortage_days > 10:
+            details_lines.append(f"...他{num_shortage_days - 10}日")
+
+        # suggestions: 不可日数の多い上位3名を特定して提案
+        # スタッフIDごとの不可日数を集計（対象期間内のみ）
+        period_dates_set = set(dates)
+        staff_unavail_in_period: dict[int, int] = defaultdict(int)
+        for (staff_id, udate) in unavailable:
+            if udate in period_dates_set:
+                staff_unavail_in_period[staff_id] += 1
+
+        staff_id_to_name = {s.id: s.name for s in staff_list}
+        # 不可日数の多い順に上位3名
+        top_staff = sorted(
+            staff_unavail_in_period.items(),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )[:3]
+
+        suggestions = []
+        for staff_id, _ucount in top_staff:
+            staff_name = staff_id_to_name.get(staff_id, f"スタッフ{staff_id}")
+            # その人が対応しているシフト枠名を収集（全枠を対象とする）
+            slot_names = [t.name for t in slots]
+            slot_hint = "・".join(slot_names[:2]) if slot_names else "シフト"
+            suggestions.append(
+                f"{staff_name}さんの不可日を減らすか、「{slot_hint}」シフトに対応できる代替スタッフの追加を検討してください"
+            )
+
+        # 全体不足が大きい場合は追加提案
+        slot_max_deficit = {}
+        for _, slot_name, _, _, deficit in c3_shortage_records:
+            slot_max_deficit[slot_name] = max(slot_max_deficit.get(slot_name, 0), deficit)
+        total_max_deficit = max(slot_max_deficit.values()) if slot_max_deficit else 0
+        if total_max_deficit >= 2:
+            suggestions.append(
+                f"スタッフを最低{total_max_deficit}人追加することで不足を解消できる可能性があります"
+            )
+
+        diagnostics.append(DiagnosticItem(
+            constraint="C3_unavailable",
+            severity="error",
+            message=f"不可日の登録が多いため、{num_shortage_days}日間でスタッフが不足しています。",
+            details=details_lines,
+            suggestions=suggestions,
+        ))
 
     # 週別の勤務上限合計 vs 必要人日
     weeks: dict[date, list[date]] = defaultdict(list)
@@ -118,6 +204,9 @@ def _presolve_checks(
                 constraint="C5_weekly_max",
                 severity="error",
                 message=f"週 {week_start.isoformat()} 開始: 必要延べ人日({total_needed})がスタッフの週勤務上限合計({total_capacity})を超えています。",
+                suggestions=[
+                    f"各スタッフの週最大勤務日数を増やすか、スタッフを追加してください（週 {week_start.isoformat()} 開始: 不足{total_needed - total_capacity}人日）"
+                ],
             ))
 
     # ロール別人数チェック（B5有効時）
@@ -129,6 +218,9 @@ def _presolve_checks(
                     constraint="B5_role_staffing",
                     severity="error",
                     message=f"ロール「{rr.role}」のスタッフ数({len(eligible)}人)が必要人数({rr.min_count}人)に不足しています。",
+                    suggestions=[
+                        f"「{rr.role}」ロールのスタッフを{rr.min_count - len(eligible)}人以上追加してください"
+                    ],
                 ))
 
     return diagnostics

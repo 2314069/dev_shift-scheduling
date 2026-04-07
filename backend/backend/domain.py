@@ -108,3 +108,4 @@ class DiagnosticItem:
     severity: str      # "error" | "warning"
     message: str       # 日本語の具体的メッセージ
     details: list[str] | None = None
+    suggestions: list[str] | None = None

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, AlertTriangle, ChevronDown } from "lucide-react";
+import { AlertCircle, AlertTriangle, ChevronDown, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DiagnosticItem } from "@/lib/types";
 import { useState } from "react";
@@ -68,6 +68,21 @@ function DiagnosticRow({ item }: { item: DiagnosticItem }) {
           )}
         </div>
       </div>
+      {item.suggestions && item.suggestions.length > 0 && (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-3 mt-2">
+          <p className="flex items-center gap-1 text-sm font-medium text-green-800">
+            <Lightbulb className="h-4 w-4 shrink-0" />
+            解決の提案
+          </p>
+          <ul className="mt-1 space-y-1">
+            {item.suggestions.map((suggestion, i) => (
+              <li key={i} className="text-sm text-green-800">
+                • {suggestion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

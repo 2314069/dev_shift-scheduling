@@ -737,3 +737,82 @@ def test_skill_staffing_constraint():
     tanaka_dates = {a["date"] for a in result["assignments"] if a["staff_id"] == 1}
     for d_str in ["2026-03-02", "2026-03-03", "2026-03-04"]:
         assert d_str in tanaka_dates, f"{d_str} に調理師免許保持者が配置されていない"
+
+
+# === 診断 details / suggestions テスト ===
+
+def test_presolve_c2_staffing_has_details_and_suggestions():
+    """C2_staffing の診断に details と suggestions が含まれること"""
+    staff_list = [Staff(id=1, name="田中", role="一般", max_days_per_week=5)]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 4))
+
+    config = SolverConfig(id=0, enable_soft_staffing=False)
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+
+    assert result["status"] == "infeasible"
+    c2_items = [d for d in result["diagnostics"] if d.constraint == "C2_staffing"]
+    assert len(c2_items) >= 1, "C2_staffing の診断が存在しない"
+
+    item = c2_items[0]
+    assert item.details is not None, "details が None"
+    assert len(item.details) >= 1, "details が空"
+    assert item.suggestions is not None, "suggestions が None"
+    assert len(item.suggestions) >= 1, "suggestions が空"
+    # 「早番」シフトへの提案が含まれること
+    assert any("早番" in s for s in item.suggestions), "早番への提案が suggestions にない"
+
+
+def test_presolve_c3_unavailable_has_details_and_suggestions():
+    """C3_unavailable の診断に details と suggestions が含まれること"""
+    staff_list = [
+        Staff(id=1, name="田中", role="一般", max_days_per_week=5),
+        Staff(id=2, name="佐藤", role="一般", max_days_per_week=5),
+    ]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 2))
+
+    # 田中が不可日 → 利用可能1人 < 必要2人
+    requests = [
+        StaffRequest(id=1, staff_id=1, date=date(2026, 3, 2), type="unavailable"),
+    ]
+
+    config = SolverConfig(id=0)
+    result = solve_schedule(period, staff_list, slots, requirements, requests, config=config)
+
+    assert result["status"] == "infeasible"
+    c3_items = [d for d in result["diagnostics"] if d.constraint == "C3_unavailable"]
+    assert len(c3_items) >= 1, "C3_unavailable の診断が存在しない"
+
+    item = c3_items[0]
+    assert item.details is not None, "details が None"
+    assert len(item.details) >= 1, "details が空"
+    assert item.suggestions is not None, "suggestions が None"
+    assert len(item.suggestions) >= 1, "suggestions が空"
+    # 田中さんへの言及が含まれること
+    assert any("田中" in s for s in item.suggestions), "田中さんへの提案が suggestions にない"
+
+
+def test_presolve_c2_staffing_consolidated():
+    """複数日の C2_staffing 不足が1件の DiagnosticItem に集約されること"""
+    # 1人スタッフ、3日間、毎日2人必要 → 3日すべてで不足するが DiagnosticItem は1件
+    staff_list = [Staff(id=1, name="田中", role="一般", max_days_per_week=5)]
+    slots = [ShiftSlot(id=1, name="早番", start_time=time(9, 0), end_time=time(17, 0))]
+    requirements = [StaffingRequirement(id=1, shift_slot_id=1, day_type="weekday", min_count=2)]
+    period = SchedulePeriod(id=1, start_date=date(2026, 3, 2), end_date=date(2026, 3, 4))
+
+    config = SolverConfig(id=0, enable_soft_staffing=False)
+    result = solve_schedule(period, staff_list, slots, requirements, [], config=config)
+
+    assert result["status"] == "infeasible"
+    c2_items = [d for d in result["diagnostics"] if d.constraint == "C2_staffing"]
+    # 複数日の不足が1件にまとまっていること
+    assert len(c2_items) == 1, f"C2_staffing が {len(c2_items)} 件あるが、1件に集約されるべき"
+    # details に複数日の情報が含まれていること（3日分 = 3件の詳細）
+    item = c2_items[0]
+    assert item.details is not None
+    # 少なくとも3件の詳細（土日除く3日間すべて）
+    detail_count = len([line for line in item.details if "不足" in line])
+    assert detail_count >= 1, "details に不足情報が含まれていない"

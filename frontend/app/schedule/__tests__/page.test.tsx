@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { mockApiFetch } from "@/test/helpers/mock-api";
+import {
+  mockApiFetch,
+  mockFetchFairnessDashboard,
+} from "@/test/helpers/mock-api";
 import {
   makeSchedulePeriod,
   makeStaff,
@@ -21,6 +24,9 @@ vi.mock("sonner", () => ({
 
 beforeEach(() => {
   mockApiFetch.mockReset();
+  // FairnessDashboard は period 選択時に呼ばれるため、never-resolve で待機させる
+  mockFetchFairnessDashboard.mockReset();
+  mockFetchFairnessDashboard.mockReturnValue(new Promise(() => {}));
 });
 
 function setupDefaultMocks({

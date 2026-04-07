@@ -6,6 +6,8 @@ import type {
   DiagnosticItem,
   StaffingRequirement,
   SolverConfig,
+  StaffFairnessMetrics,
+  FairnessDashboardData,
 } from "@/lib/types";
 
 let idCounter = 1;
@@ -106,6 +108,41 @@ export function makeSolverConfig(
     weight_fairness: 2.0,
     weight_weekend_fairness: 2.0,
     weight_soft_staffing: 10.0,
+    ...overrides,
+  };
+}
+
+export function makeStaffFairnessMetrics(
+  overrides?: Partial<StaffFairnessMetrics>
+): StaffFairnessMetrics {
+  const id = idCounter++;
+  return {
+    staff_id: id,
+    staff_name: `スタッフ${id}`,
+    total_shifts: 10,
+    early_shifts: 5,
+    late_shifts: 3,
+    other_shifts: 2,
+    weekend_shifts: 4,
+    ...overrides,
+  };
+}
+
+export function makeFairnessDashboardData(
+  overrides?: Partial<FairnessDashboardData>
+): FairnessDashboardData {
+  const metrics = [
+    makeStaffFairnessMetrics({ staff_id: 1, staff_name: "山田太郎" }),
+    makeStaffFairnessMetrics({ staff_id: 2, staff_name: "佐藤花子" }),
+  ];
+  return {
+    staff_metrics: metrics,
+    summary: {
+      avg_total: 10.0,
+      avg_early: 5.0,
+      avg_late: 3.0,
+      avg_weekend: 4.0,
+    },
     ...overrides,
   };
 }

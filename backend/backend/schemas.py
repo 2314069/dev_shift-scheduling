@@ -135,6 +135,7 @@ class DiagnosticItemSchema(BaseModel):
     severity: str
     message: str
     details: list[str] | None = None
+    suggestions: list[str] | None = None
 
 
 # --- Optimize ---
@@ -234,3 +235,26 @@ class SkillRequirementResponse(BaseModel):
     min_count: int
 
     model_config = {"from_attributes": True}
+
+
+# --- Fairness Dashboard ---
+class StaffFairnessMetrics(BaseModel):
+    staff_id: int
+    staff_name: str
+    total_shifts: int
+    early_shifts: int
+    late_shifts: int
+    other_shifts: int
+    weekend_shifts: int
+
+
+class FairnessSummary(BaseModel):
+    avg_total: float
+    avg_early: float
+    avg_late: float
+    avg_weekend: float
+
+
+class FairnessDashboardResponse(BaseModel):
+    staff_metrics: list[StaffFairnessMetrics]
+    summary: FairnessSummary
