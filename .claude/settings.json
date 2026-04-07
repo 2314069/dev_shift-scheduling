@@ -10,5 +10,20 @@
     ]
   },
   "model": "sonnet",
-  "customInstructions": "このプロジェクトはハイブリッド型マルチエージェント構成を採用しています。各エージェントは自分の責務に専念し、他のエージェントの責務を侵害しないでください。"
+  "customInstructions": "このプロジェクトはハイブリッド型マルチエージェント構成を採用しています。各エージェントは自分の責務に専念し、他のエージェントの責務を侵害しないでください。",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "printf '{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"git commit が実行されました。STATUS.md がこのコミットに含まれていたか確認してください。含まれていない場合は STATUS.md を更新してコミット・プッシュしてください。\"}}'",
+            "shell": "bash"
+          }
+        ]
+      }
+    ]
+  }
 }
