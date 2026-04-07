@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-03-01 (逆循環シフト禁止制約・スキル資格配置制約) | ブランチ: main
+> 最終更新: 2026-04-07 (公平性ダッシュボード・充足不能診断の深化・業種別プリセット) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -20,10 +20,11 @@
 | スケジュール管理・最適化 | `api/schedules.py` | ✅ 完了 |
 | ソルバー設定（制約スイッチ） | `api/solver_config.py` | ✅ 完了 |
 | PuLP + SCIP 最適化エンジン | `optimizer/solver.py` | ✅ 完了 |
-| 最適化失敗時の診断機能 | `optimizer/solver.py` | ✅ 完了 |
+| 最適化失敗時の診断機能（深化・追加提案付き） | `optimizer/solver.py` | ✅ 完了 |
 | 月またぎ連続勤務制約 | `optimizer/solver.py`, `services/schedule.py` | ✅ 完了 |
 | 逆循環シフト禁止制約 | `optimizer/solver.py`, `models.py`, `domain.py` | ✅ 完了 |
 | スキル・資格配置制約 | `optimizer/solver.py`, `api/skills.py`, `api/skill_requirements.py`, `repositories/skill.py` | ✅ 完了 |
+| 公平性ダッシュボードAPI | `api/fairness.py` | ✅ 完了 |
 
 ### フロントエンド (`frontend/`)
 
@@ -40,12 +41,14 @@
 | 最適化設定パネル | `components/solver-config-panel.tsx` | ✅ 完了 |
 | スタッフ向け閲覧画面（読み取り専用・ハイライト） | `app/view/page.tsx` | ✅ 完了 |
 | スキル要件設定画面 | `components/skill-requirements-table.tsx`, `app/settings/page.tsx` | ✅ 完了 |
+| 公平性ダッシュボード画面 | `components/fairness-dashboard.tsx`, `app/schedule/page.tsx` | ✅ 完了 |
+| 業種別プリセット制約テンプレート | `components/solver-config-panel.tsx` | ✅ 完了 |
 
 ## テスト状況
 
 ```
-バックエンド: 63 passed (2026-03-01 時点, 逆循環シフト禁止・スキル配置制約テスト追加)
-フロントエンド: 53 passed (2026-03-01 時点, Vitest + React Testing Library)
+バックエンド: 73 passed (2026-04-07 時点, 充足不能診断深化テスト追加)
+フロントエンド: 66 passed (2026-04-07 時点, 業種別プリセットテスト追加)
 ```
 
 テスト実行コマンド:
@@ -58,11 +61,13 @@ cd frontend && npm run test
 
 | コミット | 内容 |
 |---------|------|
+| (latest) | feat: add industry preset templates to solver config panel |
+| (prev)   | feat: deepen infeasibility diagnostics with staff addition suggestions |
+| (prev)   | feat: add fairness dashboard (early/late/weekend shift visualization) |
 | `1352845` | feat: add skill staffing UI to settings page and solver config panel |
 | `94cbf4d` | feat: add skill staffing constraint to solver with enable_skill_staffing toggle |
 | `59ed138` | fix: validate staff ownership in delete skill endpoint |
 | `5266c9f` | feat: add staff skills and skill requirements models, repos, and APIs |
-| `51c521c` | feat: add reverse cycle prohibition toggle to frontend |
 
 ## TODO / 次のフェーズ候補
 
@@ -71,9 +76,9 @@ cd frontend && npm run test
 - [x] 月またぎ連続勤務チェック（例: 月末5連勤+月初3連勤=実質8連勤の検出）
 
 ### 中期（差別化につながる）
-- [ ] 公平性ダッシュボード（スタッフ別の早番・遅番・土日出勤回数の可視化）
-- [ ] 業種別プリセット制約テンプレート（飲食向け・介護向けなど）
-- [ ] 充足不能診断の深化（「このスタッフを追加すると解決」まで提案）
+- [x] 公平性ダッシュボード（スタッフ別の早番・遅番・土日出勤回数の可視化）
+- [x] 業種別プリセット制約テンプレート（飲食向け・介護向けなど）
+- [x] 充足不能診断の深化（「このスタッフを追加すると解決」まで提案）
 - [x] 逆循環シフト禁止制約（遅番翌日早番の禁止）
 - [x] スキル・資格の配置制約（例: 調理師免許保持者を各シフトに1名以上）
 

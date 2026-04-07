@@ -114,6 +114,84 @@ describe("SolverConfigPanel", () => {
     expect(screen.getByLabelText("希望シフト反映の重み")).toBeInTheDocument();
   });
 
+  it("shows preset section with 5 preset buttons", async () => {
+    const config = makeSolverConfig();
+    mockApiFetch.mockResolvedValueOnce(config);
+
+    render(<SolverConfigPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("業種別プリセット")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("バランス型")).toBeInTheDocument();
+    expect(screen.getByText("飲食・サービス業")).toBeInTheDocument();
+    expect(screen.getByText("介護・医療")).toBeInTheDocument();
+    expect(screen.getByText("小売・店舗")).toBeInTheDocument();
+    expect(screen.getByText("柔軟型")).toBeInTheDocument();
+  });
+
+  it("highlights active preset when config matches", async () => {
+    // makeSolverConfig() defaults match "バランス型"
+    const config = makeSolverConfig();
+    mockApiFetch.mockResolvedValueOnce(config);
+
+    render(<SolverConfigPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("バランス型")).toBeInTheDocument();
+    });
+
+    // "カスタム設定" message should NOT appear when a preset matches
+    expect(
+      screen.queryByText("現在の設定はカスタム設定です。")
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows custom message when config does not match any preset", async () => {
+    // Unique value that no preset has
+    const config = makeSolverConfig({ weight_preferred: 9.9 });
+    mockApiFetch.mockResolvedValueOnce(config);
+
+    render(<SolverConfigPanel />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("現在の設定はカスタム設定です。")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("applies preset and calls PUT with preset values", async () => {
+    const user = userEvent.setup();
+    const config = makeSolverConfig();
+    mockApiFetch.mockResolvedValueOnce(config);
+
+    render(<SolverConfigPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("飲食・サービス業")).toBeInTheDocument();
+    });
+
+    mockApiFetch.mockResolvedValueOnce(
+      makeSolverConfig({
+        max_consecutive_days: 5,
+        enable_reverse_cycle_prohibition: true,
+        weight_fairness: 3.0,
+        weight_weekend_fairness: 3.0,
+        weight_preferred: 2.0,
+      })
+    );
+    await user.click(screen.getByText("飲食・サービス業"));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        "/api/solver-config",
+        expect.objectContaining({ method: "PUT" })
+      );
+    });
+  });
+
   it("shows error state and retry button on fetch failure", async () => {
     mockApiFetch.mockRejectedValueOnce(new Error("Network error"));
 
