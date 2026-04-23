@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-23 (Claude Code 自動フォーマット hook 導入) | ブランチ: main
+> 最終更新: 2026-04-23 (Playwright E2E 基盤導入) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -49,12 +49,14 @@
 ```
 バックエンド: 73 passed (2026-04-07 時点, 充足不能診断深化テスト追加)
 フロントエンド: 66 passed (2026-04-07 時点, 業種別プリセットテスト追加)
+E2E (Playwright): 3 passed (2026-04-23 時点, スタッフ/シフト枠追加・期間作成)
 ```
 
 テスト実行コマンド:
 ```bash
 cd backend && uv run python -m pytest -v
-cd frontend && npm run test
+cd frontend && npm run test          # 単体
+cd frontend && npm run test:e2e      # E2E (backend/frontend を自動起動)
 ```
 
 ## 最近のコミット
@@ -97,3 +99,5 @@ cd frontend && npm run test
 - フロントエンドテストは `npm run test` で実行（Vitest + React Testing Library）
 - Claude Code の Edit/Write 後に `.claude/hooks/auto-format.sh` が自動で整形実行（frontend: `prettier`, backend: `ruff format` + `ruff check --fix --select=I`）
 - `/develop` は Phase 2.5 で Plan Mode 経由のユーザー承認を取得してから実装に進む
+- Playwright E2E は専用ポート 3100 (frontend) / 8100 (backend) で起動し、test DB は `backend/e2e_test.db` を毎回 backend 起動前に削除する
+- Playwright の `globalSetup` は `webServer` 起動後に実行されるため、test DB の削除は backend 起動コマンドの `rm -f` で行う（重要な落とし穴）
