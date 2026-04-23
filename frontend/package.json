@@ -9,8 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "playwright install chromium && playwright test",
+    "test:e2e:ui": "playwright install chromium && playwright test --ui"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

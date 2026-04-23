@@ -59,6 +59,10 @@ cd frontend && npm run test          # 単体
 cd frontend && npm run test:e2e      # E2E (backend/frontend を自動起動)
 ```
 
+E2E 実行の前提:
+- `uv` がインストール済みであること（backend を起動する webServer が `uv run uvicorn` を使う）
+- Chromium は `npm run test:e2e` が起動時に `playwright install chromium` を自動実行するので手動インストール不要
+
 ## 最近のコミット
 
 | コミット | 内容 |
