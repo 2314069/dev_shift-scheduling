@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import models  # noqa: F401
 from backend.api.fairness import router as fairness_router
 from backend.api.requests import router as requests_router
-from backend.api.role_staffing_requirements import router as role_staffing_requirements_router
+from backend.api.role_staffing_requirements import (
+    router as role_staffing_requirements_router,
+)
 from backend.api.schedules import router as schedules_router
 from backend.api.shift_slots import router as shift_slots_router
 from backend.api.skill_requirements import router as skill_requirements_router
