@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-07 (フェーズ2ロードマップ整理) | ブランチ: main
+> 最終更新: 2026-04-23 (Claude Code 自動フォーマット hook 導入) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -95,3 +95,5 @@ cd frontend && npm run test
 
 - テスト実行は `uv run pytest` ではなく `uv run python -m pytest` を使うこと（root から実行時）
 - フロントエンドテストは `npm run test` で実行（Vitest + React Testing Library）
+- Claude Code の Edit/Write 後に `.claude/hooks/auto-format.sh` が自動で整形実行（frontend: `prettier`, backend: `ruff format` + `ruff check --fix --select=I`）
+- `/develop` は Phase 2.5 で Plan Mode 経由のユーザー承認を取得してから実装に進む
