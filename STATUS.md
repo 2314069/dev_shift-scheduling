@@ -1,10 +1,11 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-23 (Playwright E2E 基盤導入) | ブランチ: main
+> 最終更新: 2026-04-29 (運用計画ドラフト作成) | ブランチ: main
 
 ## 現在のフェーズ
 
-**MVP 完成** — コア機能の実装・テストが完了。次フェーズの機能追加を検討中。
+**MVP 完成 → 無料SaaS化フェーズ** — 5月末ソフトローンチ（招待制β）→ 6月一般公開を目指して運用計画を策定。
+詳細: `docs/plans/2026-04-28-operation-plan.md`
 
 ## 実装済み機能
 
@@ -67,11 +68,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| `798d5ea` | docs: add technical design document and fix Next.js version / preset table |
-| `9da7bf7` | feat: add industry preset templates to solver config panel |
-| `5069f41` | feat: add fairness dashboard (early/late/weekend shift visualization) |
-| `b663463` | feat: add reverse cycle prohibition and skill staffing constraints |
-| `09e9e7f` | feat: staff view page and cross-month consecutive days constraint |
+| `2359297` | fix: self-bootstrap chromium in test:e2e and document uv prerequisite (#5) |
+| `413d136` | test: add Playwright E2E with 3 golden-path scenarios (#4) |
+| `b6d2249` | chore: add auto-format hook and Plan Mode checkpoint to /develop (#3) |
+| `9f459e4` | docs: restructure roadmap into phase2 candidates with priority/effort table |
+| `5e18481` | chore: add PostToolUse hook to remind STATUS.md update on git commit |
 
 ## TODO / フェーズ2 候補
 
