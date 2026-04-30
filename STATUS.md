@@ -1,13 +1,14 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-30 (運用計画レビュー反映、サービス名「シフトすけっと」・ドメイン `shift-suketto.jp` 確定) | ブランチ: main
+> 最終更新: 2026-04-30 (Phase 0-1 認証実装の技術設計完了) | ブランチ: main
 
 ## 現在のフェーズ
 
 **MVP 完成 → 無料SaaS化フェーズ** — 招待制を廃し、2026-06-07 一般公開（フル公開）を目標に運用計画を策定。
-未確定事項6項目は確定済（サービス名・ドメイン・SMTP=Resend・監視=Sentry・規約=KIYAC ベース・friendly テスト不要）。
-レビュー（design-doc-reviewer）の Critical/Major 指摘を反映済（特商法対応、退会フロー追加、ドメイン取得を Phase 0 に前倒し、バッファ確保のため 5/31 → 6/7）。
-詳細: `docs/plans/2026-04-28-operation-plan.md`
+- 運用計画: 確定済（未確定事項6項目すべて決定、design-doc-reviewer の Critical/Major 反映済）
+- Phase 0-1 認証実装の技術設計: ✅ 完了（Auth.js v5 + Magic Link + JWT、自前 HTTP Adapter、6サブタスク 18h）
+- 次: Phase 0-1 の UI 設計（Designer）→ 実装（Worker）→ Phase 0-2 マルチテナント化
+- 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md`
 
 ## 実装済み機能
 
