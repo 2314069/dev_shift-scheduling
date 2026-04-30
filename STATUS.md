@@ -1,14 +1,16 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-30 (Phase 0-1 認証実装の技術設計完了) | ブランチ: main
+> 最終更新: 2026-04-30 (Phase 0-1 UI/UX 設計完了、Worker 着手準備中) | ブランチ: main
 
 ## 現在のフェーズ
 
 **MVP 完成 → 無料SaaS化フェーズ** — 招待制を廃し、2026-06-07 一般公開（フル公開）を目標に運用計画を策定。
 - 運用計画: 確定済（未確定事項6項目すべて決定、design-doc-reviewer の Critical/Major 反映済）
-- Phase 0-1 認証実装の技術設計: ✅ 完了（Auth.js v5 + Magic Link + JWT、自前 HTTP Adapter、6サブタスク 18h）
-- 次: Phase 0-1 の UI 設計（Designer）→ 実装（Worker）→ Phase 0-2 マルチテナント化
-- 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md`
+- Phase 0-1 認証実装: ✅ 技術設計完了（Planner）/ ✅ UI 設計完了（Designer）/ ⏳ 実装着手前（Worker）
+  - 採用: Auth.js v5 + Magic Link + JWT、自前 HTTP Adapter、shadcn/ui ベース UI
+  - 新規追加コンポーネント 6 ファイル、6 サブタスク 18h
+- 次: Worker による Phase 0-1 実装 → Phase 0-2 マルチテナント化
+- 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
 
