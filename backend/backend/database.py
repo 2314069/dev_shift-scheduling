@@ -64,3 +64,64 @@ def _run_migrations(engine_instance):
                 )
             )
             conn.commit()
+
+        # Phase 0-1: 認証・組織関連テーブルを追加
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(36) PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    email_verified_at DATETIME,
+                    name VARCHAR(100),
+                    image VARCHAR(500),
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    deleted_at DATETIME
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS organizations (
+                    id VARCHAR(36) PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    slug VARCHAR(50) NOT NULL UNIQUE,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    deleted_at DATETIME
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS organization_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    organization_id VARCHAR(36) NOT NULL
+                        REFERENCES organizations(id) ON DELETE CASCADE,
+                    user_id VARCHAR(36) NOT NULL
+                        REFERENCES users(id) ON DELETE CASCADE,
+                    role VARCHAR(20) NOT NULL DEFAULT 'owner',
+                    joined_at DATETIME NOT NULL,
+                    UNIQUE (user_id, organization_id)
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS verification_tokens (
+                    identifier VARCHAR(255) NOT NULL,
+                    token VARCHAR(255) NOT NULL,
+                    expires DATETIME NOT NULL,
+                    PRIMARY KEY (identifier, token)
+                )
+                """
+            )
+        )
+        conn.commit()

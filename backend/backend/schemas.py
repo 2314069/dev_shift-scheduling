@@ -1,6 +1,78 @@
-from datetime import date, time
+from datetime import date, datetime, time
 
 from pydantic import BaseModel
+
+# ---- 認証・組織関連スキーマ（Phase 0-1 追加） ----
+# サブタスク 2（内部認証 API）で拡張される最小限のスキーマ
+# email-validator は未導入のため email フィールドは str のまま保持
+# （サブタスク 2 で必要であれば pydantic[email] を追加依存する）
+
+
+class UserCreate(BaseModel):
+    id: str  # 呼び出し元（Auth.js）が UUID v4 を生成して送る
+    email: str
+    name: str | None = None
+    image: str | None = None
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    email_verified_at: datetime | None
+    name: str | None
+    image: str | None
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class OrganizationCreate(BaseModel):
+    id: str  # 呼び出し元（Auth.js）が UUID v4 を生成して送る
+    name: str
+    slug: str
+
+
+class OrganizationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class OrganizationMemberCreate(BaseModel):
+    organization_id: str
+    user_id: str
+    role: str = "owner"
+
+
+class OrganizationMemberResponse(BaseModel):
+    id: int
+    organization_id: str
+    user_id: str
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VerificationTokenCreate(BaseModel):
+    identifier: str  # email アドレス
+    token: str  # hashed token
+    expires: datetime
+
+
+class VerificationTokenResponse(BaseModel):
+    identifier: str
+    token: str
+    expires: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # --- Staff ---
