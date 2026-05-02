@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from backend.auth import get_current_user
 from backend.database import get_db
 from backend.models import (
     ScheduleAssignmentModel,
     SchedulePeriodModel,
     ShiftSlotModel,
     StaffModel,
+    User,
 )
 from backend.schemas import (
     FairnessDashboardResponse,
@@ -28,12 +30,16 @@ def _classify_shift(shift_name: str) -> str:
 
 @router.get("/{period_id}/fairness", response_model=FairnessDashboardResponse)
 def get_fairness_dashboard(
-    period_id: int, db: Session = Depends(get_db)
+    period_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ) -> FairnessDashboardResponse:
     """指定期間の公平性ダッシュボードデータを返す。"""
-    period = db.query(SchedulePeriodModel).filter(
-        SchedulePeriodModel.id == period_id
-    ).first()
+    period = (
+        db.query(SchedulePeriodModel)
+        .filter(SchedulePeriodModel.id == period_id)
+        .first()
+    )
     if period is None:
         raise HTTPException(status_code=404, detail="Schedule period not found")
 
@@ -54,9 +60,9 @@ def get_fairness_dashboard(
     slot_ids = {a.shift_slot_id for a in assignments}
     slots: dict[int, ShiftSlotModel] = {}
     if slot_ids:
-        slot_rows = db.query(ShiftSlotModel).filter(
-            ShiftSlotModel.id.in_(slot_ids)
-        ).all()
+        slot_rows = (
+            db.query(ShiftSlotModel).filter(ShiftSlotModel.id.in_(slot_ids)).all()
+        )
         slots = {s.id: s for s in slot_rows}
 
     # スタッフごとの集計用辞書

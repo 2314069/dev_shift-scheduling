@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +15,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
 
+
+def _utcnow() -> datetime:
+    """タイムゾーン情報を持たない UTC 現在時刻を返す。
+
+    SQLite は timezone-aware な datetime を保存できないため、
+    tzinfo を除去した naive datetime を使う。
+    Python 3.12 以降 datetime.utcnow() は deprecated なのでこのヘルパーで統一する。
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 # ---- 認証・組織関連モデル（Phase 0-1 追加） ----
 
 
@@ -29,10 +40,10 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     image: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
     # Phase 1-8 で退会処理に使用する論理削除フラグ
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -49,10 +60,10 @@ class Organization(Base):
         String(50), unique=True, nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
     # Phase 1-8 で最終メンバー退会後 30 日猶予ソフトデリートに使用
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -75,7 +86,7 @@ class OrganizationMember(Base):
     # Phase 0-3 で RBAC に活用。現時点は owner のみ運用
     role: Mapped[str] = mapped_column(String(20), default="owner", nullable=False)
     joined_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, nullable=False
     )
 
     __table_args__ = (UniqueConstraint("user_id", "organization_id"),)

@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-02 (Phase 0-1 サブタスク 3: Auth.js v5 + HTTP Adapter 完了) | ブランチ: main
+> 最終更新: 2026-04-29 (Phase 0-1 サブタスク 4: FastAPI Dependency 適用 完了) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -10,7 +10,7 @@
   - サブタスク 1（DB モデル & マイグレーション 3h）: ✅ 完了
   - サブタスク 2（バックエンド内部認証 API 3h）: ✅ 完了
   - サブタスク 3（Auth.js v5 設定 + HTTP Adapter 4h）: ✅ 完了 — Mailpit, .env.example, /signin etc.、frontend テスト 66 件維持
-  - サブタスク 4（FastAPI Dependency 適用 3h）: ⏳ 次着手
+  - サブタスク 4（FastAPI Dependency 適用 3h）: ✅ 完了 — auth.py(JWE/HKDF), 32エンドポイントへのDepends注入, conftest.py更新, test_auth_dependency.py 8件追加, datetime.utcnow警告ゼロ, 105件全PASS
   - サブタスク 5〜6: 未着手
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
@@ -55,7 +55,7 @@
 ## テスト状況
 
 ```
-バックエンド: 73 passed (2026-04-07 時点, 充足不能診断深化テスト追加)
+バックエンド: 105 passed (2026-04-29 時点, サブタスク4: auth.py + 32エンドポイント保護 + test_auth_dependency.py 8件追加)
 フロントエンド: 66 passed (2026-04-07 時点, 業種別プリセットテスト追加)
 E2E (Playwright): 3 passed (2026-04-23 時点, スタッフ/シフト枠追加・期間作成)
 ```

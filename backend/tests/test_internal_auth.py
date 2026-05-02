@@ -4,7 +4,12 @@ Auth.js HTTP Adapter からの呼び出しを模擬する。X-Internal-Auth-Secr
 ガード、ユーザー CRUD、Magic Link トークンの作成と消費フローを検証する。
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 import pytest
 
@@ -111,7 +116,7 @@ def test_get_user_by_email_excludes_soft_deleted(client, db_session):
     )
     user_id = res.json()["id"]
     user = db_session.get(User, user_id)
-    user.deleted_at = datetime.utcnow()
+    user.deleted_at = _utcnow()
     db_session.commit()
 
     res = client.get(
@@ -160,7 +165,7 @@ def test_patch_user_updates_fields(client):
 
 
 def test_create_verification_token_returns_201(client):
-    expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+    expires = (_utcnow() + timedelta(minutes=10)).isoformat()
     res = client.post(
         "/api/internal/auth/verification-tokens",
         json={
@@ -178,7 +183,7 @@ def test_create_verification_token_returns_201(client):
 
 
 def test_use_token_creates_new_user_when_not_exists(client, db_session):
-    expires = datetime.utcnow() + timedelta(minutes=10)
+    expires = _utcnow() + timedelta(minutes=10)
     db_session.add(
         VerificationToken(
             identifier="newuser@example.com", token="tok1", expires=expires
@@ -210,7 +215,7 @@ def test_use_token_returns_existing_user_and_marks_verified(client, db_session):
         json={"email": "existing@example.com"},
         headers=HEADERS,
     )
-    expires = datetime.utcnow() + timedelta(minutes=10)
+    expires = _utcnow() + timedelta(minutes=10)
     db_session.add(
         VerificationToken(
             identifier="existing@example.com", token="tok2", expires=expires
@@ -228,7 +233,7 @@ def test_use_token_returns_existing_user_and_marks_verified(client, db_session):
 
 
 def test_use_token_expired_returns_400_and_deletes_token(client, db_session):
-    expires = datetime.utcnow() - timedelta(minutes=1)  # 既に期限切れ
+    expires = _utcnow() - timedelta(minutes=1)  # 既に期限切れ
     db_session.add(
         VerificationToken(identifier="exp@example.com", token="exptok", expires=expires)
     )

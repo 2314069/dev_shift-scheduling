@@ -6,7 +6,13 @@ INTERNAL_AUTH_SECRET 環境変数と一致しない場合は 401 を返す。
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _utcnow() -> datetime:
+    """タイムゾーン情報を持たない UTC 現在時刻を返す（SQLite 互換）。"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
@@ -107,7 +113,7 @@ def create_user(
             detail=f"User with email '{data.email}' already exists",
         )
 
-    now = datetime.utcnow()
+    now = _utcnow()
     user = User(
         id=str(uuid.uuid4()),
         email=data.email,
@@ -191,7 +197,7 @@ def update_user(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(user, field, value)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = _utcnow()
 
     db.commit()
     db.refresh(user)
@@ -252,7 +258,7 @@ def use_verification_token(
             detail="Verification token not found",
         )
 
-    now = datetime.utcnow()
+    now = _utcnow()
     if vtoken.expires < now:
         # 期限切れトークンは削除してから 400 を返す（クリーンアップを兼ねる）
         db.delete(vtoken)
