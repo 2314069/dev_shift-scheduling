@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend import models  # noqa: F401
 from backend.api.fairness import router as fairness_router
+from backend.api.internal_auth import router as internal_auth_router
 from backend.api.requests import router as requests_router
 from backend.api.role_staffing_requirements import (
     router as role_staffing_requirements_router,
@@ -45,6 +46,7 @@ app.include_router(role_staffing_requirements_router)
 app.include_router(skills_router)
 app.include_router(skill_requirements_router)
 app.include_router(fairness_router)
+app.include_router(internal_auth_router)
 
 
 @app.get("/api/health")
