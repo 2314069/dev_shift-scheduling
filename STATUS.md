@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-04-29 (Phase 0-1 サブタスク 4: FastAPI Dependency 適用 完了) | ブランチ: main
+> 最終更新: 2026-05-02 (Phase 0-1 サブタスク 5: middleware + lib/api.ts 完了) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -9,9 +9,10 @@
 - Phase 0-1 認証実装: ✅ 技術設計（Planner）/ ✅ UI 設計（Designer）/ 🚧 Worker 実装中
   - サブタスク 1（DB モデル & マイグレーション 3h）: ✅ 完了
   - サブタスク 2（バックエンド内部認証 API 3h）: ✅ 完了
-  - サブタスク 3（Auth.js v5 設定 + HTTP Adapter 4h）: ✅ 完了 — Mailpit, .env.example, /signin etc.、frontend テスト 66 件維持
-  - サブタスク 4（FastAPI Dependency 適用 3h）: ✅ 完了 — auth.py(JWE/HKDF), 32エンドポイントへのDepends注入, conftest.py更新, test_auth_dependency.py 8件追加, datetime.utcnow警告ゼロ, 105件全PASS
-  - サブタスク 5〜6: 未着手
+  - サブタスク 3（Auth.js v5 設定 + HTTP Adapter 4h）: ✅ 完了
+  - サブタスク 4（FastAPI Dependency 適用 3h）: ✅ 完了 — 105件全PASS
+  - サブタスク 5（Next.js middleware + lib/api.ts 2h）: ✅ 完了 — middleware.ts, SessionProvider, UserNav, 401リダイレクト、frontend 66件維持
+  - サブタスク 6（テスト追加 + E2E 修正 3h）: ⏳ 次着手
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
