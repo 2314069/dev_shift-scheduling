@@ -29,6 +29,8 @@ export default defineConfig({
       env: {
         DATABASE_URL: `sqlite:///./${E2E_DB_FILENAME}`,
         ALLOWED_ORIGINS: FRONTEND_URL,
+        // E2E 時は認証を無効化して固定ユーザーを返す。APP_ENV != "production" の安全弁と組み合わせることで本番では絶対に有効化されない
+        BYPASS_AUTH_FOR_E2E: "1",
       },
       url: `${BACKEND_URL}/api/health`,
       reuseExistingServer: false,
@@ -37,7 +39,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: `NEXT_PUBLIC_API_URL='${BACKEND_URL}' npm run dev -- --port 3100 --hostname 127.0.0.1`,
+      command: `NEXT_PUBLIC_API_URL='${BACKEND_URL}' E2E_DISABLE_AUTH=1 npm run dev -- --port 3100 --hostname 127.0.0.1`,
       url: FRONTEND_URL,
       reuseExistingServer: false,
       timeout: 180_000,

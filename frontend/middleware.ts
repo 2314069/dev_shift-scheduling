@@ -2,28 +2,47 @@
  * 保護ルートの定義
  *
  * 未認証ユーザーを /signin にリダイレクトする。
- * Auth.js v5 の auth 関数をそのまま middleware としてエクスポートすることで、
- * Edge Runtime で動作しセッション検証のオーバーヘッドを最小化できる。
+ * Edge Runtime では Node.js stream モジュールが使えないため、
+ * Nodemailer を含まない auth.config.ts の設定だけを使う Edge-safe な auth を参照する。
  */
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "@/auth.config";
+import { NextResponse, type NextRequest } from "next/server";
 
-export default auth((req) => {
-  const isAuth = !!req.auth;
-  const pathname = req.nextUrl.pathname;
+const { auth } = NextAuth(authConfig);
 
-  // 認証ページは未ログインでもアクセス可
-  const isAuthPage =
-    pathname.startsWith("/signin") ||
-    pathname.startsWith("/verify-request") ||
-    pathname.startsWith("/auth/error");
+// E2E テスト時のみ認証をバイパスする安全弁付きのミドルウェア。
+// production では NODE_ENV が "production" になるため絶対に有効化されない。
+function createMiddleware() {
+  const e2eBypass =
+    process.env.E2E_DISABLE_AUTH === "1" &&
+    process.env.NODE_ENV !== "production";
 
-  if (!isAuth && !isAuthPage) {
-    const signInUrl = new URL("/signin", req.url);
-    signInUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(signInUrl);
+  if (e2eBypass) {
+    // E2E バイパスモード: 認証チェックをスキップして通過させる
+    return (_req: NextRequest) => NextResponse.next();
   }
-});
+
+  // 通常モード: Auth.js による認証チェック
+  return auth((req) => {
+    const isAuth = !!req.auth;
+    const pathname = req.nextUrl.pathname;
+
+    // 認証ページは未ログインでもアクセス可
+    const isAuthPage =
+      pathname.startsWith("/signin") ||
+      pathname.startsWith("/verify-request") ||
+      pathname.startsWith("/auth/error");
+
+    if (!isAuth && !isAuthPage) {
+      const signInUrl = new URL("/signin", req.url);
+      signInUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+  });
+}
+
+export default createMiddleware();
 
 export const config = {
   // 静的アセット・Next.js 内部ルート・Auth.js API ルートを除外する

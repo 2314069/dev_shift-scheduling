@@ -38,6 +38,11 @@ _AUTH_SECRET: str | None = os.environ.get("AUTH_SECRET")
 # Cookie 名: 本番は環境変数 AUTH_COOKIE_NAME で "__Secure-authjs.session-token" に切り替える
 COOKIE_NAME: str = os.environ.get("AUTH_COOKIE_NAME", "authjs.session-token")
 
+# E2E テスト用のダミーユーザー ID（固定値）。
+# BYPASS_AUTH_FOR_E2E=1 のとき、このユーザーが自動的に DB に upsert されて返される。
+E2E_TEST_USER_ID = "e2e-test-user-id"
+E2E_TEST_USER_EMAIL = "e2e@shift-suketto.local"
+
 
 # --- 鍵導出 ---
 
@@ -90,6 +95,34 @@ def _decode_jwe(token: str, secret: str, cookie_name: str) -> dict:
     return payload
 
 
+def _get_or_create_e2e_user(db: Session) -> User:
+    """E2E バイパス用のダミーユーザーを返す。存在しなければ作成する。
+
+    固定 UUID を使うことで E2E テストからこの ID を前提にできる。
+    並行リクエストによる UNIQUE 違反を避けるため INSERT 後に再フェッチする。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
+    if user is not None:
+        return user
+
+    try:
+        user = User(
+            id=E2E_TEST_USER_ID,
+            email=E2E_TEST_USER_EMAIL,
+            name="E2E Test User",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        # 並行リクエストが先に INSERT した場合は rollback して再フェッチする
+        db.rollback()
+        user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
+    return user  # type: ignore[return-value]
+
+
 # --- Dependency ---
 
 
@@ -119,7 +152,19 @@ def get_current_user(
     - exp クレームが現在時刻より前
     - users テーブルにユーザーが存在しない
     - ユーザーが論理削除済み（deleted_at IS NOT NULL）
+
+    E2E バイパス:
+    - BYPASS_AUTH_FOR_E2E=1 かつ非本番環境（APP_ENV != "production"）のとき、
+      認証チェックをスキップして固定 E2E ユーザーを返す。
+      APP_ENV を安全弁に使うことで、本番での誤有効化を防ぐ。
     """
+    # E2E テスト用バイパス。本番（APP_ENV=production）では絶対に有効化されない安全弁付き。
+    if (
+        os.environ.get("BYPASS_AUTH_FOR_E2E") == "1"
+        and os.environ.get("APP_ENV") != "production"
+    ):
+        return _get_or_create_e2e_user(db)
+
     # AUTH_SECRET は起動後に変わる可能性があるので都度読む
     secret = os.environ.get("AUTH_SECRET", _AUTH_SECRET)
     if not secret:
