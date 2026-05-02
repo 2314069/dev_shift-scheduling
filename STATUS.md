@@ -1,13 +1,15 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-02 (Phase 0-1 認証実装 完了 🎉) | ブランチ: main
+> 最終更新: 2026-05-02 (Phase 0-1 認証実装 完了 🎉、本日のセッション終了) | ブランチ: main
 
 ## 現在のフェーズ
 
 **MVP 完成 → 無料SaaS化フェーズ** — 招待制を廃し、2026-06-07 一般公開（フル公開）を目標に運用計画を策定。
 - 運用計画: 確定済（未確定事項6項目すべて決定、design-doc-reviewer の Critical/Major 反映済）
 - **Phase 0-1 認証実装: ✅ 完了**（全 6 サブタスク、Auth.js v5 + JWE + Mailpit、105+75+3 件 PASS）
-- 次: **Phase 0-2 マルチテナント化**（全テーブルに organization_id、API スコープ徹底、20h 見積）
+- 次回再開時: **Phase 0-2 マルチテナント化**（全テーブルに `organization_id`、API スコープ徹底、20h 見積）
+  - 進め方は未確定（Planner → Worker × N が推奨）。Phase 0-1 と同じ流れで再開可能
+  - 影響範囲調査と工数内訳は `docs/plans/2026-04-28-operation-plan.md` § Phase 0 に反映済
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
@@ -51,9 +53,9 @@
 ## テスト状況
 
 ```
-バックエンド: 105 passed (2026-04-29 時点, サブタスク4: auth.py + 32エンドポイント保護 + test_auth_dependency.py 8件追加)
-フロントエンド: 66 passed (2026-04-07 時点, 業種別プリセットテスト追加)
-E2E (Playwright): 3 passed (2026-04-23 時点, スタッフ/シフト枠追加・期間作成)
+バックエンド: 105 passed (2026-05-02 時点, Phase 0-1 完了: 認証関連 32件追加)
+フロントエンド: 75 passed (2026-05-02 時点, sign-in-form / user-nav テスト 9件追加)
+E2E (Playwright): 3 passed (2026-05-02 時点, E2E 認証バイパス機構経由で動作)
 ```
 
 テスト実行コマンド:
@@ -71,11 +73,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| `2359297` | fix: self-bootstrap chromium in test:e2e and document uv prerequisite (#5) |
-| `413d136` | test: add Playwright E2E with 3 golden-path scenarios (#4) |
-| `b6d2249` | chore: add auto-format hook and Plan Mode checkpoint to /develop (#3) |
-| `9f459e4` | docs: restructure roadmap into phase2 candidates with priority/effort table |
-| `5e18481` | chore: add PostToolUse hook to remind STATUS.md update on git commit |
+| `da062cc` | feat(auth): add E2E auth bypass and complete Phase 0-1 authentication |
+| `06d00b5` | feat(auth): add middleware, SessionProvider, UserNav, 401 redirect |
+| `b6e7024` | feat(auth): apply get_current_user dependency to all 32 endpoints |
+| `c4da8bc` | feat(auth): set up Auth.js v5 with custom HTTP adapter and Mailpit |
+| `9737273` | feat(auth): add internal auth API for Auth.js HTTP adapter |
 
 ## TODO / フェーズ2 候補
 
@@ -87,7 +89,7 @@ E2E 実行の前提:
 | 希望入力の締め切り日設定 | ★★☆ | 小 | 管理者が締め切りを設定・スタッフに表示 |
 | 稼働実績の記録・集計 | ★★☆ | 中 | 実績 vs 計画の比較・月次集計ダッシュボード |
 | シフト交換申請 | ★★☆ | 大 | スタッフ間申請 → 管理者承認フロー |
-| 認証・ログイン機能 | ★☆☆ | 大 | ユーザー認証・スタッフ別マイページ |
+| ~~認証・ログイン機能~~ | — | — | ✅ Phase 0-1 で実装完了（2026-05-02） |
 | 非同期ジョブ化 | ★☆☆ | 大 | 最適化をバックグラウンド処理化（大規模対応） |
 
 ### 完了済み
