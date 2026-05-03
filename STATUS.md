@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-03 (Phase 0-2 マルチテナント分離 実装完了) | ブランチ: main
+> 最終更新: 2026-05-03 (Phase 0 完了ゲート: セキュリティレビュー + ブロッカー M1 修正) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -13,6 +13,10 @@
   - 全 API エンドポイントが `Depends(get_current_org_id)` を使用
   - `get_current_org_id` Dependency を `auth.py` に追加
   - テナント分離テスト 2件追加（`tests/auth/test_org_isolation.py`）
+- **Phase 0 完了ゲート（セキュリティレビュー）: ✅ 実施済**（reviewer エージェント / Critical 0 件・Major 6 件・Minor 7 件）
+  - **ブロッカー [#M1] E2E バイパスの fail-close 化: ✅ 修正完了**（`APP_ENV in ("test","development")` ホワイトリスト方式、契約テスト 6 件追加）
+  - **ブロッカー [#M3] 新規ユーザーの組織自動付与: 🔜 Phase 1-1（オンボーディング）に合流して対応予定**
+  - 残 Major（M2/M4/M5/M6）と Minor 7 件は次 PR / Architect / 文書化で対応予定
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
@@ -56,9 +60,9 @@
 ## テスト状況
 
 ```
-バックエンド: 105 passed (2026-05-02 時点, Phase 0-1 完了: 認証関連 32件追加)
+バックエンド: 113 passed (2026-05-03 時点, Phase 0 完了ゲートで E2E バイパス契約テスト 6 件追加)
 フロントエンド: 75 passed (2026-05-02 時点, sign-in-form / user-nav テスト 9件追加)
-E2E (Playwright): 3 passed (2026-05-02 時点, E2E 認証バイパス機構経由で動作)
+E2E (Playwright): 3 passed (2026-05-03 時点, バイパスが組織メンバーシップを自動付与するよう拡張)
 ```
 
 テスト実行コマンド:

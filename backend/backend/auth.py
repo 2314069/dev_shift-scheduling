@@ -38,10 +38,14 @@ _AUTH_SECRET: str | None = os.environ.get("AUTH_SECRET")
 # Cookie 名: 本番は環境変数 AUTH_COOKIE_NAME で "__Secure-authjs.session-token" に切り替える
 COOKIE_NAME: str = os.environ.get("AUTH_COOKIE_NAME", "authjs.session-token")
 
-# E2E テスト用のダミーユーザー ID（固定値）。
-# BYPASS_AUTH_FOR_E2E=1 のとき、このユーザーが自動的に DB に upsert されて返される。
+# E2E テスト用のダミーユーザー / 組織（固定値）。
+# BYPASS_AUTH_FOR_E2E=1 のとき、これらが自動的に DB に upsert されて返される。
+# Phase 0-2 でマルチテナント化されたため、`get_current_org_id` が要求する
+# OrganizationMember も同時に upsert する必要がある。
 E2E_TEST_USER_ID = "e2e-test-user-id"
 E2E_TEST_USER_EMAIL = "e2e@shift-suketto.local"
+E2E_TEST_ORG_ID = "e2e-test-org-id"
+E2E_TEST_ORG_SLUG = "e2e-test-org"
 
 
 # --- 鍵導出 ---
@@ -96,30 +100,66 @@ def _decode_jwe(token: str, secret: str, cookie_name: str) -> dict:
 
 
 def _get_or_create_e2e_user(db: Session) -> User:
-    """E2E バイパス用のダミーユーザーを返す。存在しなければ作成する。
+    """E2E バイパス用のダミーユーザーを返す。存在しなければ User / 組織 / Member を作成する。
 
     固定 UUID を使うことで E2E テストからこの ID を前提にできる。
-    並行リクエストによる UNIQUE 違反を避けるため INSERT 後に再フェッチする。
+    Phase 0-2 でマルチテナント化されたため、`get_current_org_id` が要求する
+    OrganizationMember も同時に upsert する。並行リクエストによる UNIQUE 違反を
+    避けるため INSERT 後に再フェッチする。
     """
     from sqlalchemy.exc import IntegrityError
 
-    user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
-    if user is not None:
-        return user
+    from backend.models import Organization, OrganizationMember
 
-    try:
-        user = User(
-            id=E2E_TEST_USER_ID,
-            email=E2E_TEST_USER_EMAIL,
-            name="E2E Test User",
+    user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
+    if user is None:
+        try:
+            user = User(
+                id=E2E_TEST_USER_ID,
+                email=E2E_TEST_USER_EMAIL,
+                name="E2E Test User",
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # 並行リクエストが先に INSERT した場合は rollback して再フェッチする
+            db.rollback()
+            user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
+
+    org = db.query(Organization).filter(Organization.id == E2E_TEST_ORG_ID).first()
+    if org is None:
+        try:
+            org = Organization(
+                id=E2E_TEST_ORG_ID,
+                name="E2E Test Organization",
+                slug=E2E_TEST_ORG_SLUG,
+            )
+            db.add(org)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+
+    member = (
+        db.query(OrganizationMember)
+        .filter(
+            OrganizationMember.user_id == E2E_TEST_USER_ID,
+            OrganizationMember.organization_id == E2E_TEST_ORG_ID,
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    except IntegrityError:
-        # 並行リクエストが先に INSERT した場合は rollback して再フェッチする
-        db.rollback()
-        user = db.query(User).filter(User.id == E2E_TEST_USER_ID).first()
+        .first()
+    )
+    if member is None:
+        try:
+            member = OrganizationMember(
+                user_id=E2E_TEST_USER_ID,
+                organization_id=E2E_TEST_ORG_ID,
+                role="owner",
+            )
+            db.add(member)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+
     return user  # type: ignore[return-value]
 
 
@@ -154,14 +194,16 @@ def get_current_user(
     - ユーザーが論理削除済み（deleted_at IS NOT NULL）
 
     E2E バイパス:
-    - BYPASS_AUTH_FOR_E2E=1 かつ非本番環境（APP_ENV != "production"）のとき、
+    - BYPASS_AUTH_FOR_E2E=1 かつ APP_ENV が "test" / "development" のときのみ
       認証チェックをスキップして固定 E2E ユーザーを返す。
-      APP_ENV を安全弁に使うことで、本番での誤有効化を防ぐ。
+      APP_ENV 未設定（本番想定）では絶対に有効化されない fail-close ホワイトリスト方式。
     """
-    # E2E テスト用バイパス。本番（APP_ENV=production）では絶対に有効化されない安全弁付き。
-    if (
-        os.environ.get("BYPASS_AUTH_FOR_E2E") == "1"
-        and os.environ.get("APP_ENV") != "production"
+    # APP_ENV を明示的に "test" / "development" に指定したときだけバイパスを許可する
+    # （fail-close）。APP_ENV 未設定 = 本番扱いとし、誤って BYPASS_AUTH_FOR_E2E=1 が
+    # 注入されても認証は無効化されない。
+    if os.environ.get("BYPASS_AUTH_FOR_E2E") == "1" and os.environ.get("APP_ENV") in (
+        "test",
+        "development",
     ):
         return _get_or_create_e2e_user(db)
 

@@ -29,7 +29,9 @@ export default defineConfig({
       env: {
         DATABASE_URL: `sqlite:///./${E2E_DB_FILENAME}`,
         ALLOWED_ORIGINS: FRONTEND_URL,
-        // E2E 時は認証を無効化して固定ユーザーを返す。APP_ENV != "production" の安全弁と組み合わせることで本番では絶対に有効化されない
+        // E2E 時は認証を無効化して固定ユーザーを返す。APP_ENV を "test" に明示することでのみ
+        // バイパスが有効化される fail-close 方式（本番では APP_ENV を未設定 or "production" にする）
+        APP_ENV: "test",
         BYPASS_AUTH_FOR_E2E: "1",
       },
       url: `${BACKEND_URL}/api/health`,

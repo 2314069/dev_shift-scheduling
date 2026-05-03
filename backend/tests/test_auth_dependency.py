@@ -83,7 +83,9 @@ def existing_user(auth_db_session) -> User:
     """DB に保存済みのアクティブユーザー。OrganizationMember 付きで作成する。"""
     from backend.models import Organization, OrganizationMember
 
-    org = Organization(id="auth-test-org-id", name="Auth Test Org", slug="auth-test-org")
+    org = Organization(
+        id="auth-test-org-id", name="Auth Test Org", slug="auth-test-org"
+    )
     auth_db_session.add(org)
     auth_db_session.flush()
 
@@ -196,4 +198,55 @@ def test_wrong_secret_returns_401(auth_client, existing_user, monkeypatch):
     auth_client.cookies.set("authjs.session-token", token)
     response = auth_client.get("/api/staff")
     auth_client.cookies.clear()
+    assert response.status_code == 401
+
+
+# --- E2E バイパスの fail-close テスト ---
+
+
+def test_e2e_bypass_disabled_when_app_env_unset(auth_client, monkeypatch):
+    """APP_ENV 未設定時は BYPASS_AUTH_FOR_E2E=1 でもバイパスは無効（fail-close）。"""
+    monkeypatch.setenv("BYPASS_AUTH_FOR_E2E", "1")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    response = auth_client.get("/api/staff")
+    assert response.status_code == 401
+
+
+def test_e2e_bypass_disabled_when_app_env_production(auth_client, monkeypatch):
+    """APP_ENV=production では BYPASS_AUTH_FOR_E2E=1 でもバイパスは無効。"""
+    monkeypatch.setenv("BYPASS_AUTH_FOR_E2E", "1")
+    monkeypatch.setenv("APP_ENV", "production")
+    response = auth_client.get("/api/staff")
+    assert response.status_code == 401
+
+
+def test_e2e_bypass_disabled_when_app_env_unknown(auth_client, monkeypatch):
+    """ホワイトリスト外の APP_ENV（staging 等）では BYPASS_AUTH_FOR_E2E=1 でもバイパス無効。"""
+    monkeypatch.setenv("BYPASS_AUTH_FOR_E2E", "1")
+    monkeypatch.setenv("APP_ENV", "staging")
+    response = auth_client.get("/api/staff")
+    assert response.status_code == 401
+
+
+def test_e2e_bypass_active_when_app_env_test(auth_client, monkeypatch):
+    """APP_ENV=test + BYPASS_AUTH_FOR_E2E=1 のときのみバイパスが有効化される。"""
+    monkeypatch.setenv("BYPASS_AUTH_FOR_E2E", "1")
+    monkeypatch.setenv("APP_ENV", "test")
+    response = auth_client.get("/api/staff")
+    assert response.status_code == 200
+
+
+def test_e2e_bypass_active_when_app_env_development(auth_client, monkeypatch):
+    """APP_ENV=development + BYPASS_AUTH_FOR_E2E=1 でもバイパスが有効化される。"""
+    monkeypatch.setenv("BYPASS_AUTH_FOR_E2E", "1")
+    monkeypatch.setenv("APP_ENV", "development")
+    response = auth_client.get("/api/staff")
+    assert response.status_code == 200
+
+
+def test_e2e_bypass_disabled_when_flag_not_set(auth_client, monkeypatch):
+    """APP_ENV=test でも BYPASS_AUTH_FOR_E2E が未設定ならバイパスは無効。"""
+    monkeypatch.delenv("BYPASS_AUTH_FOR_E2E", raising=False)
+    monkeypatch.setenv("APP_ENV", "test")
+    response = auth_client.get("/api/staff")
     assert response.status_code == 401
