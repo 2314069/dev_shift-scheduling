@@ -82,7 +82,10 @@ def _decode_jwe(token: str, secret: str, cookie_name: str) -> dict:
         key = OctKey.import_key(key_bytes)
         result = jwe.decrypt_compact(token, key)
         payload: dict = json.loads(result.plaintext)
-    except (JoseError, Exception) as exc:
+    except (JoseError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        # JoseError: 復号・署名検証失敗、ValueError/KeyError: 想定外の鍵入力、
+        # JSONDecodeError: 復号後の plaintext が JSON でない場合。
+        # 上記以外（実装バグなど）は 500 として透過させる。
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or malformed token",
@@ -258,14 +261,20 @@ def get_current_org_id(
 ) -> str:
     """ログイン中ユーザーの organization_id を返す。
 
-    OrganizationMember を通じて取得する。
-    未所属の場合は 403 を返す。
+    OrganizationMember を通じて取得し、組織が論理削除済みの場合は除外する。
+    所属組織がない / すべての所属組織が削除済みの場合は 403 を返す。
     """
-    from backend.models import OrganizationMember
+    from backend.models import Organization, OrganizationMember
 
+    # Phase 1-8 で Organization.deleted_at を使った論理削除を導入する予定。
+    # 削除済み組織のメンバーシップは無効として扱う。
     member = (
         db.query(OrganizationMember)
-        .filter(OrganizationMember.user_id == current_user.id)
+        .join(Organization, Organization.id == OrganizationMember.organization_id)
+        .filter(
+            OrganizationMember.user_id == current_user.id,
+            Organization.deleted_at.is_(None),
+        )
         .first()
     )
     if not member:

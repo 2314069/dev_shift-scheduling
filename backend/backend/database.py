@@ -26,11 +26,18 @@ def get_db():
 
 
 def _run_migrations(engine_instance):
-    """既存SQLiteテーブルへのカラム追加マイグレーション（SQLiteのみ実行）"""
+    """既存SQLiteテーブルへのカラム追加マイグレーション（SQLiteのみ実行）。
+
+    すべてのステップを単一トランザクションで実行し、途中で失敗した場合は
+    全体ロールバックする（部分適用による不整合を防ぐ）。
+    """
     if not _is_sqlite:
         return
-    with engine_instance.connect() as conn:
-        # staff テーブルに min_days_per_week カラムがなければ追加
+
+    import uuid
+
+    with engine_instance.begin() as conn:
+        # 1. 旧カラム追加マイグレーション ---
         result = conn.execute(text("PRAGMA table_info(staff)"))
         columns = {row[1] for row in result}
         if "min_days_per_week" not in columns:
@@ -39,9 +46,7 @@ def _run_migrations(engine_instance):
                     "ALTER TABLE staff ADD COLUMN min_days_per_week INTEGER NOT NULL DEFAULT 0"
                 )
             )
-            conn.commit()
 
-        # solver_config に enable_reverse_cycle_prohibition がなければ追加
         result = conn.execute(text("PRAGMA table_info(solver_config)"))
         columns = {row[1] for row in result}
         if "enable_reverse_cycle_prohibition" not in columns:
@@ -51,9 +56,7 @@ def _run_migrations(engine_instance):
                     "BOOLEAN NOT NULL DEFAULT 0"
                 )
             )
-            conn.commit()
 
-        # solver_config に enable_skill_staffing がなければ追加
         result = conn.execute(text("PRAGMA table_info(solver_config)"))
         columns = {row[1] for row in result}
         if "enable_skill_staffing" not in columns:
@@ -63,9 +66,8 @@ def _run_migrations(engine_instance):
                     "BOOLEAN NOT NULL DEFAULT 0"
                 )
             )
-            conn.commit()
 
-        # Phase 0-1: 認証・組織関連テーブルを追加
+        # 2. Phase 0-1: 認証・組織関連テーブル ---
         conn.execute(
             text(
                 """
@@ -124,40 +126,44 @@ def _run_migrations(engine_instance):
                 """
             )
         )
-        conn.commit()
 
-    # Default Organization（slug "default"）を作成
-    with engine_instance.connect() as conn:
-        result = conn.execute(text("SELECT id FROM organizations WHERE slug = 'default'"))
+        # 3. Default Organization（slug "default"）---
+        # Phase 0-2 マイグレーション当時に既存だった業務データはすべてこの組織に集約される。
+        # 既存ユーザーが存在する環境では、後続の運用タスクで適切な OrganizationMember を
+        # 作成する必要がある（詳細: docs/plans/2026-04-28-operation-plan.md Phase 0-2）。
+        result = conn.execute(
+            text("SELECT id FROM organizations WHERE slug = 'default'")
+        )
         row = result.fetchone()
         if row is None:
-            import uuid
             default_org_id = str(uuid.uuid4())
             conn.execute(
                 text(
                     "INSERT OR IGNORE INTO organizations (id, name, slug, created_at, updated_at)"
                     " VALUES (:id, :name, :slug, datetime('now'), datetime('now'))"
                 ),
-                {"id": default_org_id, "name": "Default Organization", "slug": "default"},
+                {
+                    "id": default_org_id,
+                    "name": "Default Organization",
+                    "slug": "default",
+                },
             )
-            conn.commit()
         else:
             default_org_id = row[0]
 
-    # 各テーブルに organization_id を追加
-    tables_needing_org_id = [
-        "staff",
-        "shift_slots",
-        "schedule_periods",
-        "schedule_assignments",
-        "staff_requests",
-        "staffing_requirements",
-        "role_staffing_requirements",
-        "skill_requirements",
-        "staff_skills",
-        "solver_config",
-    ]
-    with engine_instance.connect() as conn:
+        # 4. 業務テーブルに organization_id を追加（Phase 0-2）---
+        tables_needing_org_id = [
+            "staff",
+            "shift_slots",
+            "schedule_periods",
+            "schedule_assignments",
+            "staff_requests",
+            "staffing_requirements",
+            "role_staffing_requirements",
+            "skill_requirements",
+            "staff_skills",
+            "solver_config",
+        ]
         for table in tables_needing_org_id:
             result = conn.execute(text(f"PRAGMA table_info({table})"))
             columns = [row[1] for row in result.fetchall()]
@@ -174,4 +180,4 @@ def _run_migrations(engine_instance):
                         f" ON {table}(organization_id)"
                     )
                 )
-        conn.commit()
+        # `engine.begin()` が抜ける時に commit、例外時は自動 rollback。

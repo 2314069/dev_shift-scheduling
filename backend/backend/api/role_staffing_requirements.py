@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.repositories import RoleStaffingRequirementRepository
+from backend.repositories import RoleStaffingRequirementRepository, ShiftSlotRepository
 from backend.schemas import (
     RoleStaffingRequirementCreate,
     RoleStaffingRequirementResponse,
@@ -29,6 +29,8 @@ def create_role_staffing_requirement(
     db: Session = Depends(get_db),
     org_id: str = Depends(get_current_org_id),
 ):
+    if ShiftSlotRepository(db).get_by_id(org_id, data.shift_slot_id) is None:
+        raise HTTPException(status_code=404, detail="Shift slot not found")
     repo = RoleStaffingRequirementRepository(db)
     return repo.create(org_id, **data.model_dump())
 

@@ -6,14 +6,14 @@ from sqlalchemy.orm import Session
 from backend.domain import DiagnosticItem, ScheduleAssignment, SchedulePeriod
 from backend.optimizer.solver import solve_schedule
 from backend.repositories import (
-    ScheduleRepository,
-    StaffRepository,
-    ShiftSlotRepository,
-    StaffingRequirementRepository,
-    StaffRequestRepository,
-    SolverConfigRepository,
     RoleStaffingRequirementRepository,
+    ScheduleRepository,
+    ShiftSlotRepository,
     SkillRepository,
+    SolverConfigRepository,
+    StaffingRequirementRepository,
+    StaffRepository,
+    StaffRequestRepository,
 )
 from backend.schemas import ScheduleResponse
 
@@ -55,7 +55,9 @@ class ScheduleService:
         period = self._schedule_repo.get_period(self._org_id, period_id)
         if period is None:
             return None
-        assignments = self._schedule_repo.get_assignments_by_period(self._org_id, period_id)
+        assignments = self._schedule_repo.get_assignments_by_period(
+            self._org_id, period_id
+        )
         return ScheduleResponse(period=period, assignments=assignments)
 
     def update_assignment(
@@ -64,13 +66,23 @@ class ScheduleService:
         assignment = self._schedule_repo.get_assignment(self._org_id, assignment_id)
         if not assignment or assignment.period_id != period_id:
             return None
-        return self._schedule_repo.update_assignment(self._org_id, assignment_id, shift_slot_id)
+        # 他組織の shift_slot_id を弾く（None は「未割当」なので許可）
+        if (
+            shift_slot_id is not None
+            and self._slot_repo.get_by_id(self._org_id, shift_slot_id) is None
+        ):
+            return None
+        return self._schedule_repo.update_assignment(
+            self._org_id, assignment_id, shift_slot_id
+        )
 
     def publish(self, period_id: int) -> SchedulePeriod | None:
         period = self._schedule_repo.get_period(self._org_id, period_id)
         if period is None:
             return None
-        return self._schedule_repo.update_period_status(self._org_id, period_id, "published")
+        return self._schedule_repo.update_period_status(
+            self._org_id, period_id, "published"
+        )
 
     def optimize(self, period_id: int) -> OptimizeResult | None:
         period = self._schedule_repo.get_period(self._org_id, period_id)
@@ -119,7 +131,9 @@ class ScheduleService:
             role_requirements=role_requirements,
             prefix_assignments=prefix_assignments if prefix_assignments else None,
             staff_skills=staff_skills_data if staff_skills_data else None,
-            skill_requirements=skill_requirements_data if skill_requirements_data else None,
+            skill_requirements=skill_requirements_data
+            if skill_requirements_data
+            else None,
         )
 
         diagnostics = result.get("diagnostics", [])
@@ -128,7 +142,9 @@ class ScheduleService:
             self._schedule_repo.bulk_create_assignments(
                 self._org_id, period_id, result["assignments"]
             )
-            saved = self._schedule_repo.get_assignments_by_period(self._org_id, period_id)
+            saved = self._schedule_repo.get_assignments_by_period(
+                self._org_id, period_id
+            )
             return OptimizeResult(
                 status=result["status"],
                 message=result["message"],

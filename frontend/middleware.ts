@@ -12,11 +12,13 @@ import { NextResponse, type NextRequest } from "next/server";
 const { auth } = NextAuth(authConfig);
 
 // E2E テスト時のみ認証をバイパスする安全弁付きのミドルウェア。
-// production では NODE_ENV が "production" になるため絶対に有効化されない。
+// fail-close ホワイトリスト方式: NODE_ENV を "development" / "test" のときに限り
+// バイパスを有効化する（NODE_ENV 未設定や予期しない値ではバイパスされない）。
 function createMiddleware() {
+  const allowedEnvs = new Set(["development", "test"]);
   const e2eBypass =
     process.env.E2E_DISABLE_AUTH === "1" &&
-    process.env.NODE_ENV !== "production";
+    allowedEnvs.has(process.env.NODE_ENV ?? "");
 
   if (e2eBypass) {
     // E2E バイパスモード: 認証チェックをスキップして通過させる

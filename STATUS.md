@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-03 (Phase 0 完了ゲート: セキュリティレビュー + ブロッカー M1 修正) | ブランチ: main
+> 最終更新: 2026-05-03 (Phase 0 完了ゲート指摘の Major/Minor 一括対応) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -8,15 +8,20 @@
 - 運用計画: 確定済（未確定事項6項目すべて決定、design-doc-reviewer の Critical/Major 反映済）
 - **Phase 0-1 認証実装: ✅ 完了**（全 6 サブタスク、Auth.js v5 + JWE + Mailpit）
 - **Phase 0-2 マルチテナント化: ✅ 実装完了**（全テーブルに `organization_id`、API スコープ徹底、テナント分離テスト追加）
-  - 全10業務テーブルに `organization_id` カラム追加（models.py + DB マイグレーション）
-  - 全リポジトリの全メソッドに `org_id: str` フィルタを追加
-  - 全 API エンドポイントが `Depends(get_current_org_id)` を使用
-  - `get_current_org_id` Dependency を `auth.py` に追加
-  - テナント分離テスト 2件追加（`tests/auth/test_org_isolation.py`）
-- **Phase 0 完了ゲート（セキュリティレビュー）: ✅ 実施済**（reviewer エージェント / Critical 0 件・Major 6 件・Minor 7 件）
-  - **ブロッカー [#M1] E2E バイパスの fail-close 化: ✅ 修正完了**（`APP_ENV in ("test","development")` ホワイトリスト方式、契約テスト 6 件追加）
-  - **ブロッカー [#M3] 新規ユーザーの組織自動付与: 🔜 Phase 1-1（オンボーディング）に合流して対応予定**
-  - 残 Major（M2/M4/M5/M6）と Minor 7 件は次 PR / Architect / 文書化で対応予定
+- **Phase 0 完了ゲート（セキュリティレビュー）: ✅ 実施済 + 指摘対応完了**
+  - reviewer エージェント結果: Critical 0 件・Major 6 件・Minor 7 件
+  - **ブロッカー [#M1] E2E バイパスの fail-close 化**: ✅ 修正完了（`APP_ENV` ホワイトリスト方式 + 契約テスト 6 件）
+  - **[#M2] FK 入力のクロステナント検証**: ✅ 完了（staffing/role/skill requirements の `shift_slot_id`、staff_request の `staff_id`/`shift_slot_id`、assignment update の `shift_slot_id` を検証）
+  - **[#M4] `bulk_create_requests` の `period_id` 検証復活**: ✅ 完了（period 所属 + 範囲外日付 + staff/slot テナント検証）
+  - **[#M5] models.py の `default="default"` 削除**: ✅ 完了（全 10 テーブル）
+  - **[#M6] マイグレーション集約方針の文書化**: ✅ 完了（`docs/plans/2026-04-28-operation-plan.md`）
+  - **[#m1] `get_current_org_id` で組織論理削除考慮**: ✅ 完了（`Organization.deleted_at IS NULL` JOIN）
+  - **[#m3] `_decode_jwe` の except 絞り込み**: ✅ 完了（`JoseError, ValueError, KeyError, JSONDecodeError`）
+  - **[#m5] テナント分離テスト拡張**: ✅ 完了（DELETE / FK 越境 / period 越境 / 未所属 403 など 13 件追加、計 15 件）
+  - **[#m6] frontend middleware の fail-close 化**: ✅ 完了（NODE_ENV ホワイトリスト方式）
+  - **[#m7] マイグレーションのトランザクション統合**: ✅ 完了（`engine.begin()` で単一トランザクション）
+  - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: 🔜 Phase 1-1（オンボーディング）に合流予定
+  - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
@@ -60,7 +65,7 @@
 ## テスト状況
 
 ```
-バックエンド: 113 passed (2026-05-03 時点, Phase 0 完了ゲートで E2E バイパス契約テスト 6 件追加)
+バックエンド: 126 passed (2026-05-03 時点, M2/M4 検証 + テナント分離テスト 13件追加)
 フロントエンド: 75 passed (2026-05-02 時点, sign-in-form / user-nav テスト 9件追加)
 E2E (Playwright): 3 passed (2026-05-03 時点, バイパスが組織メンバーシップを自動付与するよう拡張)
 ```

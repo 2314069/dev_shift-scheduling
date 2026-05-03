@@ -31,4 +31,7 @@ def bulk_create_requests(
 ):
     service = RequestService(db, org_id)
     items = [item.model_dump() for item in data.requests]
-    return service.bulk_create_requests(items)
+    try:
+        return service.bulk_create_requests(data.period_id, items)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

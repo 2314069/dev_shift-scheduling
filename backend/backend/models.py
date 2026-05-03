@@ -113,7 +113,7 @@ class StaffModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
@@ -131,7 +131,7 @@ class ShiftSlotModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
@@ -147,7 +147,7 @@ class StaffRequestModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -164,7 +164,7 @@ class SchedulePeriodModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -180,7 +180,7 @@ class ScheduleAssignmentModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     period_id: Mapped[int] = mapped_column(
         ForeignKey("schedule_periods.id"), nullable=False
@@ -201,7 +201,7 @@ class StaffingRequirementModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     shift_slot_id: Mapped[int] = mapped_column(
         ForeignKey("shift_slots.id"), nullable=False
@@ -217,7 +217,7 @@ class SolverConfigModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     max_consecutive_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=6
@@ -268,7 +268,7 @@ class RoleStaffingRequirementModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     shift_slot_id: Mapped[int] = mapped_column(
         ForeignKey("shift_slots.id"), nullable=False
@@ -285,7 +285,7 @@ class StaffSkillModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id"), nullable=False)
     skill: Mapped[str] = mapped_column(String, nullable=False)
@@ -296,7 +296,7 @@ class SkillRequirementModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        ForeignKey("organizations.id"), nullable=False, default="default", index=True
+        ForeignKey("organizations.id"), nullable=False, index=True
     )
     shift_slot_id: Mapped[int] = mapped_column(
         ForeignKey("shift_slots.id"), nullable=False

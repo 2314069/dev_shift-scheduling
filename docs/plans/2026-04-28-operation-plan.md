@@ -52,6 +52,8 @@ SaaSとして致命的に欠けている基礎を埋める。
 > **Phase 0 完了ゲート**: マージ前に Reviewer エージェントによるセキュリティレビューを必ず実施し、テナント分離・認可漏れ・solver入力のテナント混在をチェックする。
 >
 > **0-2 工数内訳（参考）**: DB+リポジトリ 4h / スキーマ 1h / API 10ファイル 5h / solver+service 統合 2h / テスト書き直し+テナント分離テスト 4h / フロント `api.ts` 1h / マイグレーション準備 1h / セキュリティ確認 2h = 20h。
+>
+> **0-2 マイグレーション運用上の注意（重要）**: `_run_migrations` は既存 SQLite DB の全業務テーブル（staff/shift_slots/staff_requests など 10 テーブル）に `organization_id` カラムを追加し、既存行はすべて自動生成される **Default Organization**（slug `default`）に紐付けられる。Phase 0-1 期間中に先行サインアップ済みのユーザーがいる場合、それらのユーザーは Default Organization のメンバーには **自動付与されない** ため、Phase 0-3 の本番デプロイ動作確認時に手動で `OrganizationMember(role=owner)` を作成する運用タスクを実行する必要がある（または Phase 1-1 オンボーディングフローで対応）。新規環境（fresh DB）に対しては Default Organization は空のままで良く、Phase 1-1 のオンボーディングフローで個別組織が作成される想定。
 
 ### Phase 1: SaaS化（5/13〜5/26、約2週、~37h）
 

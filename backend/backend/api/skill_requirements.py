@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.repositories import SkillRepository
+from backend.repositories import ShiftSlotRepository, SkillRepository
 from backend.schemas import SkillRequirementCreate, SkillRequirementResponse
 
 router = APIRouter(prefix="/api/skill-requirements", tags=["skill-requirements"])
@@ -24,6 +24,8 @@ def create_skill_requirement(
     db: Session = Depends(get_db),
     org_id: str = Depends(get_current_org_id),
 ):
+    if ShiftSlotRepository(db).get_by_id(org_id, data.shift_slot_id) is None:
+        raise HTTPException(status_code=404, detail="Shift slot not found")
     repo = SkillRepository(db)
     return repo.create_skill_requirement(org_id, **data.model_dump())
 
