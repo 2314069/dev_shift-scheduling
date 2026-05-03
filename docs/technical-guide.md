@@ -380,6 +380,47 @@ dev-shift-scheduling/
 
 ---
 
+## DB マイグレーション運用（Alembic）
+
+Phase 1-7 で **Alembic** を導入し、現行手動 ALTER ベースの仕組みを置き換えた。SQLite（dev）と PostgreSQL（Railway 本番）の両方を同一フローで扱える。
+
+### 仕組みの概要
+
+- マイグレーションスクリプトは `backend/alembic/versions/*.py` に置かれる。
+- 接続先 DB は環境変数 `DATABASE_URL`（`backend/alembic/env.py` が `alembic.ini` の値より優先する）。
+- バックエンド起動時、`backend/main.py` から `apply_migrations(engine)` が呼ばれる。
+  - 環境変数 `AUTO_MIGRATE=1`（デフォルト）のとき `alembic upgrade head` 相当を実行
+  - `AUTO_MIGRATE=0` を明示すると何もしない（本番で deploy step として明示実行したい運用向け）
+- **Pre-Alembic な既存 DB の救済**: `alembic_version` テーブルが無く、`organizations` などのテーブルは既にあるケースでは、自動的に `alembic stamp head` を実行して「最新状態」とマークする（既存データを温存）。
+
+### よく使うコマンド（`backend/` ディレクトリで実行）
+
+```bash
+# 最新マイグレーションまで適用
+uv run alembic upgrade head
+
+# 1 つ戻す（緊急ロールバック）
+uv run alembic downgrade -1
+
+# 既存 DB を最新リビジョンとしてマーク（DDL は実行しない）
+uv run alembic stamp head
+
+# 現在のリビジョン確認
+uv run alembic current
+
+# モデル変更後の差分マイグレーションを自動生成
+uv run alembic revision --autogenerate -m "description here"
+```
+
+### 本番（Railway PostgreSQL）での運用方針
+
+- 推奨: Railway の deploy command で `alembic upgrade head` を明示実行し、バックエンド側は `AUTO_MIGRATE=0` にする（uvicorn ワーカー間の競合を避ける）。
+- 簡易運用: `AUTO_MIGRATE=1` のままでも、Alembic の `alembic_version` テーブルロックによりレースは安全に直列化されるが、デプロイの可観測性のために deploy step に分けることを推奨。
+
+### テスト環境
+
+`backend/tests/conftest.py` は速度重視で `Base.metadata.create_all(engine)` を直接使う（Alembic 経由ではない）。テスト履歴は不要なため、この設計が単純で速い。
+
 ## 参考リンク
 
 | 技術 | 公式サイト |
@@ -391,6 +432,7 @@ dev-shift-scheduling/
 | shadcn/ui | https://ui.shadcn.com/ |
 | FastAPI | https://fastapi.tiangolo.com/ |
 | SQLAlchemy | https://www.sqlalchemy.org/ |
+| Alembic | https://alembic.sqlalchemy.org/ |
 | Pydantic | https://docs.pydantic.dev/ |
 | PuLP | https://coin-or.github.io/pulp/ |
 | SCIP | https://www.scipopt.org/ |

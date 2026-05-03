@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-03 (Phase 0 完了ゲート指摘の Major/Minor 一括対応) | ブランチ: main
+> 最終更新: 2026-05-03 (Phase 1-7 Alembic 導入完了) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -22,7 +22,13 @@
   - **[#m7] マイグレーションのトランザクション統合**: ✅ 完了（`engine.begin()` で単一トランザクション）
   - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: 🔜 Phase 1-1（オンボーディング）に合流予定
   - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
-- 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
+- **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
+  - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
+  - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
+  - `_run_migrations` を撤去し、`apply_migrations(engine)` が `alembic upgrade head` を起動時に実行（`AUTO_MIGRATE=0` で無効化可能）
+  - Pre-Alembic な既存 DB に対しては自動的に `alembic stamp head` する救済を実装
+  - 運用フローを `docs/technical-guide.md` に追記
+- 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md` / `docs/technical-guide.md` (Alembic 運用)
 
 ## 実装済み機能
 

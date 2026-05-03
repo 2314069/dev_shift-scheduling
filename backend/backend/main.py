@@ -17,10 +17,11 @@ from backend.api.skills import router as skills_router
 from backend.api.solver_config import router as solver_config_router
 from backend.api.staff import router as staff_router
 from backend.api.staffing_requirements import router as staffing_requirements_router
-from backend.database import Base, _run_migrations, engine
+from backend.database import apply_migrations, engine
 
-Base.metadata.create_all(bind=engine)
-_run_migrations(engine)
+# Alembic ベースのマイグレーションを適用（AUTO_MIGRATE=0 で無効化可能）。
+# Base.metadata.create_all は alembic に置き換えたため呼び出さない。
+apply_migrations(engine)
 
 app = FastAPI(title="Shift Scheduling API")
 
