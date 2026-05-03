@@ -28,21 +28,31 @@ class SolverConfigRepository:
             weight_fairness=model.weight_fairness,
             weight_weekend_fairness=model.weight_weekend_fairness,
             weight_soft_staffing=model.weight_soft_staffing,
+            organization_id=model.organization_id,
         )
 
-    def get_or_create_default(self) -> SolverConfig:
-        model = self.db.get(SolverConfigModel, 1)
+    def get_or_create(self, org_id: str) -> SolverConfig:
+        """org_id に対応する SolverConfig を返す。なければ作成する。"""
+        model = (
+            self.db.query(SolverConfigModel)
+            .filter(SolverConfigModel.organization_id == org_id)
+            .first()
+        )
         if model is None:
-            model = SolverConfigModel(id=1)
+            model = SolverConfigModel(organization_id=org_id)
             self.db.add(model)
             self.db.commit()
             self.db.refresh(model)
         return self._to_domain(model)
 
-    def update(self, **kwargs) -> SolverConfig:
-        model = self.db.get(SolverConfigModel, 1)
+    def update(self, org_id: str, **kwargs) -> SolverConfig:
+        model = (
+            self.db.query(SolverConfigModel)
+            .filter(SolverConfigModel.organization_id == org_id)
+            .first()
+        )
         if model is None:
-            model = SolverConfigModel(id=1)
+            model = SolverConfigModel(organization_id=org_id)
             self.db.add(model)
             self.db.commit()
             self.db.refresh(model)
@@ -52,12 +62,16 @@ class SolverConfigRepository:
         self.db.refresh(model)
         return self._to_domain(model)
 
-    def reset(self) -> SolverConfig:
-        model = self.db.get(SolverConfigModel, 1)
+    def reset(self, org_id: str) -> SolverConfig:
+        model = (
+            self.db.query(SolverConfigModel)
+            .filter(SolverConfigModel.organization_id == org_id)
+            .first()
+        )
         if model:
             self.db.delete(model)
             self.db.commit()
-        model = SolverConfigModel(id=1)
+        model = SolverConfigModel(organization_id=org_id)
         self.db.add(model)
         self.db.commit()
         self.db.refresh(model)

@@ -17,6 +17,7 @@ class ScheduleRepository:
             start_date=model.start_date,
             end_date=model.end_date,
             status=model.status,
+            organization_id=model.organization_id,
         )
 
     @staticmethod
@@ -28,31 +29,47 @@ class ScheduleRepository:
             date=model.date,
             is_manual_edit=model.is_manual_edit,
             shift_slot_id=model.shift_slot_id,
+            organization_id=model.organization_id,
         )
 
     # --- Period操作 ---
 
-    def list_periods(self) -> list[SchedulePeriod]:
+    def list_periods(self, org_id: str) -> list[SchedulePeriod]:
         models = (
             self.db.query(SchedulePeriodModel)
+            .filter(SchedulePeriodModel.organization_id == org_id)
             .order_by(SchedulePeriodModel.start_date.desc())
             .all()
         )
         return [self._to_period_domain(m) for m in models]
 
-    def get_period(self, period_id: int) -> SchedulePeriod | None:
-        model = self.db.get(SchedulePeriodModel, period_id)
+    def get_period(self, org_id: str, period_id: int) -> SchedulePeriod | None:
+        model = (
+            self.db.query(SchedulePeriodModel)
+            .filter(
+                SchedulePeriodModel.id == period_id,
+                SchedulePeriodModel.organization_id == org_id,
+            )
+            .first()
+        )
         return self._to_period_domain(model) if model else None
 
-    def create_period(self, **kwargs) -> SchedulePeriod:
-        model = SchedulePeriodModel(**kwargs)
+    def create_period(self, org_id: str, **kwargs) -> SchedulePeriod:
+        model = SchedulePeriodModel(organization_id=org_id, **kwargs)
         self.db.add(model)
         self.db.commit()
         self.db.refresh(model)
         return self._to_period_domain(model)
 
-    def update_period_status(self, period_id: int, status: str) -> SchedulePeriod | None:
-        model = self.db.get(SchedulePeriodModel, period_id)
+    def update_period_status(self, org_id: str, period_id: int, status: str) -> SchedulePeriod | None:
+        model = (
+            self.db.query(SchedulePeriodModel)
+            .filter(
+                SchedulePeriodModel.id == period_id,
+                SchedulePeriodModel.organization_id == org_id,
+            )
+            .first()
+        )
         if not model:
             return None
         model.status = status
@@ -62,30 +79,42 @@ class ScheduleRepository:
 
     # --- Assignment操作 ---
 
-    def get_assignments_by_period(self, period_id: int) -> list[ScheduleAssignment]:
+    def get_assignments_by_period(self, org_id: str, period_id: int) -> list[ScheduleAssignment]:
         models = (
             self.db.query(ScheduleAssignmentModel)
-            .filter(ScheduleAssignmentModel.period_id == period_id)
+            .filter(
+                ScheduleAssignmentModel.period_id == period_id,
+                ScheduleAssignmentModel.organization_id == org_id,
+            )
             .all()
         )
         return [self._to_assignment_domain(m) for m in models]
 
-    def get_assignment(self, assignment_id: int) -> ScheduleAssignment | None:
-        model = self.db.get(ScheduleAssignmentModel, assignment_id)
+    def get_assignment(self, org_id: str, assignment_id: int) -> ScheduleAssignment | None:
+        model = (
+            self.db.query(ScheduleAssignmentModel)
+            .filter(
+                ScheduleAssignmentModel.id == assignment_id,
+                ScheduleAssignmentModel.organization_id == org_id,
+            )
+            .first()
+        )
         return self._to_assignment_domain(model) if model else None
 
-    def delete_auto_assignments(self, period_id: int) -> None:
+    def delete_auto_assignments(self, org_id: str, period_id: int) -> None:
         self.db.query(ScheduleAssignmentModel).filter(
             ScheduleAssignmentModel.period_id == period_id,
+            ScheduleAssignmentModel.organization_id == org_id,
             ScheduleAssignmentModel.is_manual_edit == False,  # noqa: E712
         ).delete()
         self.db.commit()
 
     def bulk_create_assignments(
-        self, period_id: int, assignments_data: list[dict]
+        self, org_id: str, period_id: int, assignments_data: list[dict]
     ) -> None:
         for a in assignments_data:
             model = ScheduleAssignmentModel(
+                organization_id=org_id,
                 period_id=period_id,
                 staff_id=a["staff_id"],
                 date=date_type.fromisoformat(a["date"]),
@@ -96,9 +125,16 @@ class ScheduleRepository:
         self.db.commit()
 
     def update_assignment(
-        self, assignment_id: int, shift_slot_id: int | None
+        self, org_id: str, assignment_id: int, shift_slot_id: int | None
     ) -> ScheduleAssignment | None:
-        model = self.db.get(ScheduleAssignmentModel, assignment_id)
+        model = (
+            self.db.query(ScheduleAssignmentModel)
+            .filter(
+                ScheduleAssignmentModel.id == assignment_id,
+                ScheduleAssignmentModel.organization_id == org_id,
+            )
+            .first()
+        )
         if not model:
             return None
         model.shift_slot_id = shift_slot_id
@@ -107,13 +143,14 @@ class ScheduleRepository:
         self.db.refresh(model)
         return self._to_assignment_domain(model)
 
-    def get_published_period_ending_before(self, start_date: date_type) -> SchedulePeriod | None:
+    def get_published_period_ending_before(self, org_id: str, start_date: date_type) -> SchedulePeriod | None:
         """start_date の前日を end_date とする公開済み期間を返す"""
         from datetime import timedelta
         target_end = start_date - timedelta(days=1)
         model = (
             self.db.query(SchedulePeriodModel)
             .filter(
+                SchedulePeriodModel.organization_id == org_id,
                 SchedulePeriodModel.end_date == target_end,
                 SchedulePeriodModel.status == "published",
             )

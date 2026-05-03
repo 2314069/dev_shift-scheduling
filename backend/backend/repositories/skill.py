@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.domain import SkillRequirement, StaffSkill
-from backend.models import SkillRequirementModel, StaffSkillModel, StaffModel
+from backend.models import SkillRequirementModel, StaffModel, StaffSkillModel
 
 
 class SkillRepository:
@@ -9,41 +9,56 @@ class SkillRepository:
         self.db = db
 
     # --- StaffSkill ---
-    def list_skills_by_staff(self, staff_id: int) -> list[StaffSkill]:
+    def list_skills_by_staff(self, org_id: str, staff_id: int) -> list[StaffSkill]:
         return [
-            StaffSkill(id=m.id, staff_id=m.staff_id, skill=m.skill)
+            StaffSkill(id=m.id, staff_id=m.staff_id, skill=m.skill, organization_id=m.organization_id)
             for m in self.db.query(StaffSkillModel)
-            .filter(StaffSkillModel.staff_id == staff_id)
+            .filter(
+                StaffSkillModel.staff_id == staff_id,
+                StaffSkillModel.organization_id == org_id,
+            )
             .all()
         ]
 
-    def add_skill(self, staff_id: int, skill: str) -> StaffSkill | None:
-        if not self.db.get(StaffModel, staff_id):
+    def add_skill(self, org_id: str, staff_id: int, skill: str) -> StaffSkill | None:
+        # org_id フィルタを含めてスタッフの存在確認
+        staff = (
+            self.db.query(StaffModel)
+            .filter(StaffModel.id == staff_id, StaffModel.organization_id == org_id)
+            .first()
+        )
+        if not staff:
             return None
-        model = StaffSkillModel(staff_id=staff_id, skill=skill)
+        model = StaffSkillModel(organization_id=org_id, staff_id=staff_id, skill=skill)
         self.db.add(model)
         self.db.commit()
         self.db.refresh(model)
-        return StaffSkill(id=model.id, staff_id=model.staff_id, skill=model.skill)
+        return StaffSkill(id=model.id, staff_id=model.staff_id, skill=model.skill, organization_id=model.organization_id)
 
-    def delete_skill(self, skill_id: int, staff_id: int | None = None) -> bool:
-        model = self.db.get(StaffSkillModel, skill_id)
+    def delete_skill(self, org_id: str, skill_id: int, staff_id: int | None = None) -> bool:
+        query = self.db.query(StaffSkillModel).filter(
+            StaffSkillModel.id == skill_id,
+            StaffSkillModel.organization_id == org_id,
+        )
+        if staff_id is not None:
+            query = query.filter(StaffSkillModel.staff_id == staff_id)
+        model = query.first()
         if not model:
             return False
-        if staff_id is not None and model.staff_id != staff_id:
-            return False  # 所有権の検証
         self.db.delete(model)
         self.db.commit()
         return True
 
-    def list_all_staff_skills(self) -> list[StaffSkill]:
+    def list_all_staff_skills(self, org_id: str) -> list[StaffSkill]:
         return [
-            StaffSkill(id=m.id, staff_id=m.staff_id, skill=m.skill)
-            for m in self.db.query(StaffSkillModel).all()
+            StaffSkill(id=m.id, staff_id=m.staff_id, skill=m.skill, organization_id=m.organization_id)
+            for m in self.db.query(StaffSkillModel)
+            .filter(StaffSkillModel.organization_id == org_id)
+            .all()
         ]
 
     # --- SkillRequirement ---
-    def list_skill_requirements(self) -> list[SkillRequirement]:
+    def list_skill_requirements(self, org_id: str) -> list[SkillRequirement]:
         return [
             SkillRequirement(
                 id=m.id,
@@ -51,12 +66,15 @@ class SkillRepository:
                 day_type=m.day_type,
                 skill=m.skill,
                 min_count=m.min_count,
+                organization_id=m.organization_id,
             )
-            for m in self.db.query(SkillRequirementModel).all()
+            for m in self.db.query(SkillRequirementModel)
+            .filter(SkillRequirementModel.organization_id == org_id)
+            .all()
         ]
 
-    def create_skill_requirement(self, **kwargs) -> SkillRequirement:
-        model = SkillRequirementModel(**kwargs)
+    def create_skill_requirement(self, org_id: str, **kwargs) -> SkillRequirement:
+        model = SkillRequirementModel(organization_id=org_id, **kwargs)
         self.db.add(model)
         self.db.commit()
         self.db.refresh(model)
@@ -66,10 +84,18 @@ class SkillRepository:
             day_type=model.day_type,
             skill=model.skill,
             min_count=model.min_count,
+            organization_id=model.organization_id,
         )
 
-    def delete_skill_requirement(self, req_id: int) -> bool:
-        model = self.db.get(SkillRequirementModel, req_id)
+    def delete_skill_requirement(self, org_id: str, req_id: int) -> bool:
+        model = (
+            self.db.query(SkillRequirementModel)
+            .filter(
+                SkillRequirementModel.id == req_id,
+                SkillRequirementModel.organization_id == org_id,
+            )
+            .first()
+        )
         if not model:
             return False
         self.db.delete(model)

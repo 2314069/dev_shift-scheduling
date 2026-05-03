@@ -1,3 +1,6 @@
+from tests.conftest import TEST_ORG_ID
+
+
 def _setup_optimization_scenario(client):
     """最適化テスト用のデータをセットアップ"""
     # スタッフ3人
@@ -53,28 +56,50 @@ def test_optimize_with_previous_published_period(client, db_session):
 
     # スタッフ（十分な人数を確保）
     for i in range(3):
-        s = StaffModel(name=f"スタッフ{i}", role="一般", max_days_per_week=7, min_days_per_week=0)
+        s = StaffModel(
+            organization_id=TEST_ORG_ID,
+            name=f"スタッフ{i}",
+            role="一般",
+            max_days_per_week=7,
+            min_days_per_week=0,
+        )
         db_session.add(s)
     db_session.flush()
 
     # シフト枠
-    slot = ShiftSlotModel(name="早番", start_time=dt_time(9, 0), end_time=dt_time(17, 0))
+    slot = ShiftSlotModel(
+        organization_id=TEST_ORG_ID,
+        name="早番",
+        start_time=dt_time(9, 0),
+        end_time=dt_time(17, 0),
+    )
     db_session.add(slot)
     db_session.flush()
 
-    req = StaffingRequirementModel(shift_slot_id=slot.id, day_type="weekday", min_count=1)
+    req = StaffingRequirementModel(
+        organization_id=TEST_ORG_ID,
+        shift_slot_id=slot.id,
+        day_type="weekday",
+        min_count=1,
+    )
     db_session.add(req)
 
     # 前月（公開済み）を作成
     prev = SchedulePeriodModel(
-        start_date=date(2026, 3, 1), end_date=date(2026, 3, 31), status="published"
+        organization_id=TEST_ORG_ID,
+        start_date=date(2026, 3, 1),
+        end_date=date(2026, 3, 31),
+        status="published",
     )
     db_session.add(prev)
     db_session.flush()
 
     # 今月（draft）
     curr = SchedulePeriodModel(
-        start_date=date(2026, 4, 1), end_date=date(2026, 4, 3), status="draft"
+        organization_id=TEST_ORG_ID,
+        start_date=date(2026, 4, 1),
+        end_date=date(2026, 4, 3),
+        status="draft",
     )
     db_session.add(curr)
     db_session.commit()

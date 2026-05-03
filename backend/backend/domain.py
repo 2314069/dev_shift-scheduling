@@ -9,6 +9,7 @@ class Staff:
     role: str
     max_days_per_week: int = 5
     min_days_per_week: int = 0
+    organization_id: str = "default"
 
 
 @dataclass
@@ -17,6 +18,7 @@ class ShiftSlot:
     name: str
     start_time: time
     end_time: time
+    organization_id: str = "default"
 
 
 @dataclass
@@ -26,6 +28,7 @@ class StaffRequest:
     date: date
     type: str
     shift_slot_id: int | None = None
+    organization_id: str = "default"
 
 
 @dataclass
@@ -34,6 +37,7 @@ class SchedulePeriod:
     start_date: date
     end_date: date
     status: str = "draft"
+    organization_id: str = "default"
 
 
 @dataclass
@@ -44,6 +48,7 @@ class ScheduleAssignment:
     date: date
     is_manual_edit: bool = False
     shift_slot_id: int | None = None
+    organization_id: str = "default"
 
 
 @dataclass
@@ -52,6 +57,7 @@ class StaffingRequirement:
     shift_slot_id: int
     day_type: str
     min_count: int
+    organization_id: str = "default"
 
 
 @dataclass
@@ -75,6 +81,7 @@ class SolverConfig:
     weight_fairness: float = 2.0
     weight_weekend_fairness: float = 2.0
     weight_soft_staffing: float = 10.0
+    organization_id: str = "default"
 
 
 @dataclass
@@ -84,6 +91,7 @@ class RoleStaffingRequirement:
     day_type: str
     role: str
     min_count: int
+    organization_id: str = "default"
 
 
 @dataclass
@@ -91,6 +99,7 @@ class StaffSkill:
     id: int
     staff_id: int
     skill: str
+    organization_id: str = "default"
 
 
 @dataclass
@@ -100,6 +109,7 @@ class SkillRequirement:
     day_type: str
     skill: str
     min_count: int
+    organization_id: str = "default"
 
 
 @dataclass

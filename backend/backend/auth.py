@@ -208,3 +208,27 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_org_id(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> str:
+    """ログイン中ユーザーの organization_id を返す。
+
+    OrganizationMember を通じて取得する。
+    未所属の場合は 403 を返す。
+    """
+    from backend.models import OrganizationMember
+
+    member = (
+        db.query(OrganizationMember)
+        .filter(OrganizationMember.user_id == current_user.id)
+        .first()
+    )
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No organization membership found",
+        )
+    return member.organization_id

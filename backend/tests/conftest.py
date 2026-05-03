@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,10 +7,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id, get_current_user
 from backend.database import Base, get_db
 from backend.main import app
-from backend.models import User
+from backend.models import Organization, OrganizationMember, User
+
+# テスト用のデフォルト組織 ID（固定値）
+TEST_ORG_ID = "test-org-uuid-0000"
+TEST_ORG_SLUG = "test-org"
+
+# テスト用ユーザー ID（固定値）
+TEST_USER_ID = "test-user-uuid-0000"
 
 
 def _make_stub_user() -> User:
@@ -19,7 +27,7 @@ def _make_stub_user() -> User:
     User 型アノテーションを満たしつつ DB アクセスを発生させない。
     """
     user = MagicMock(spec=User)
-    user.id = "test-user-uuid-0000"
+    user.id = TEST_USER_ID
     user.email = "test@example.com"
     user.name = "テストユーザー"
     user.image = None
@@ -40,6 +48,24 @@ def db_session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+
+    # Default Organization をテスト DB に作成
+    org = Organization(id=TEST_ORG_ID, name="Test Organization", slug=TEST_ORG_SLUG)
+    session.add(org)
+
+    # テストユーザーを作成
+    user = User(id=TEST_USER_ID, email="test@example.com")
+    session.add(user)
+
+    # OrganizationMember を作成（get_current_org_id が依存）
+    member = OrganizationMember(
+        organization_id=TEST_ORG_ID,
+        user_id=TEST_USER_ID,
+        role="owner",
+    )
+    session.add(member)
+    session.commit()
+
     yield session
     session.close()
 
@@ -56,7 +82,11 @@ def client(db_session):
     def override_get_current_user():
         return stub_user
 
+    def override_get_current_org_id():
+        return TEST_ORG_ID
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_current_org_id] = override_get_current_org_id
     yield TestClient(app)
     app.dependency_overrides.clear()

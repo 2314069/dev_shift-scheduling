@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.models import User
 from backend.schemas import (
     DiagnosticItemSchema,
     OptimizeResponse,
@@ -22,18 +21,18 @@ router = APIRouter(prefix="/api/schedules", tags=["schedules"])
 def create_schedule_period(
     data: SchedulePeriodCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     return service.create_period(data.start_date, data.end_date)
 
 
 @router.get("", response_model=list[SchedulePeriodResponse])
 def list_schedule_periods(
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     return service.list_periods()
 
 
@@ -41,9 +40,9 @@ def list_schedule_periods(
 def get_schedule(
     period_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     result = service.get_schedule(period_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Schedule period not found")
@@ -59,9 +58,9 @@ def update_assignment(
     assignment_id: int,
     data: ScheduleAssignmentUpdate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     result = service.update_assignment(period_id, assignment_id, data.shift_slot_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
@@ -72,9 +71,9 @@ def update_assignment(
 def publish_schedule(
     period_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     result = service.publish(period_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Schedule period not found")
@@ -85,9 +84,9 @@ def publish_schedule(
 def optimize_schedule(
     period_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = ScheduleService(db)
+    service = ScheduleService(db, org_id)
     result = service.optimize(period_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Schedule period not found")

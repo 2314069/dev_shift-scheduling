@@ -125,3 +125,53 @@ def _run_migrations(engine_instance):
             )
         )
         conn.commit()
+
+    # Default Organization（slug "default"）を作成
+    with engine_instance.connect() as conn:
+        result = conn.execute(text("SELECT id FROM organizations WHERE slug = 'default'"))
+        row = result.fetchone()
+        if row is None:
+            import uuid
+            default_org_id = str(uuid.uuid4())
+            conn.execute(
+                text(
+                    "INSERT OR IGNORE INTO organizations (id, name, slug, created_at, updated_at)"
+                    " VALUES (:id, :name, :slug, datetime('now'), datetime('now'))"
+                ),
+                {"id": default_org_id, "name": "Default Organization", "slug": "default"},
+            )
+            conn.commit()
+        else:
+            default_org_id = row[0]
+
+    # 各テーブルに organization_id を追加
+    tables_needing_org_id = [
+        "staff",
+        "shift_slots",
+        "schedule_periods",
+        "schedule_assignments",
+        "staff_requests",
+        "staffing_requirements",
+        "role_staffing_requirements",
+        "skill_requirements",
+        "staff_skills",
+        "solver_config",
+    ]
+    with engine_instance.connect() as conn:
+        for table in tables_needing_org_id:
+            result = conn.execute(text(f"PRAGMA table_info({table})"))
+            columns = [row[1] for row in result.fetchall()]
+            if "organization_id" not in columns:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ADD COLUMN organization_id TEXT NOT NULL"
+                        f" DEFAULT '{default_org_id}'"
+                    )
+                )
+                conn.execute(
+                    text(
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_org"
+                        f" ON {table}(organization_id)"
+                    )
+                )
+        conn.commit()

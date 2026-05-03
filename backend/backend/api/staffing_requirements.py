@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.models import User
 from backend.repositories import StaffingRequirementRepository
 from backend.schemas import (
     StaffingRequirementCreate,
@@ -17,20 +16,20 @@ router = APIRouter(prefix="/api/staffing-requirements", tags=["staffing-requirem
 @router.get("", response_model=list[StaffingRequirementResponse])
 def list_staffing_requirements(
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = StaffingRequirementRepository(db)
-    return repo.list_all()
+    return repo.list_all(org_id)
 
 
 @router.post("", response_model=StaffingRequirementResponse, status_code=201)
 def create_staffing_requirement(
     data: StaffingRequirementCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = StaffingRequirementRepository(db)
-    return repo.create(**data.model_dump())
+    return repo.create(org_id, **data.model_dump())
 
 
 @router.put("/{req_id}", response_model=StaffingRequirementResponse)
@@ -38,10 +37,10 @@ def update_staffing_requirement(
     req_id: int,
     data: StaffingRequirementUpdate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = StaffingRequirementRepository(db)
-    result = repo.update(req_id, data.min_count)
+    result = repo.update(org_id, req_id, data.min_count)
     if result is None:
         raise HTTPException(status_code=404, detail="Staffing requirement not found")
     return result

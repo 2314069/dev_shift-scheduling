@@ -8,6 +8,7 @@ from backend.models import (
     ShiftSlotModel,
     StaffModel,
 )
+from tests.conftest import TEST_ORG_ID
 
 
 # ---------------------------------------------------------------------------
@@ -15,7 +16,13 @@ from backend.models import (
 # ---------------------------------------------------------------------------
 
 def _create_staff(db_session, name: str) -> StaffModel:
-    staff = StaffModel(name=name, role="一般", max_days_per_week=5, min_days_per_week=0)
+    staff = StaffModel(
+        organization_id=TEST_ORG_ID,
+        name=name,
+        role="一般",
+        max_days_per_week=5,
+        min_days_per_week=0,
+    )
     db_session.add(staff)
     db_session.flush()
     return staff
@@ -24,14 +31,24 @@ def _create_staff(db_session, name: str) -> StaffModel:
 def _create_slot(db_session, name: str) -> ShiftSlotModel:
     from datetime import time
 
-    slot = ShiftSlotModel(name=name, start_time=time(9, 0), end_time=time(17, 0))
+    slot = ShiftSlotModel(
+        organization_id=TEST_ORG_ID,
+        name=name,
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+    )
     db_session.add(slot)
     db_session.flush()
     return slot
 
 
 def _create_period(db_session, start: date, end: date) -> SchedulePeriodModel:
-    period = SchedulePeriodModel(start_date=start, end_date=end, status="draft")
+    period = SchedulePeriodModel(
+        organization_id=TEST_ORG_ID,
+        start_date=start,
+        end_date=end,
+        status="draft",
+    )
     db_session.add(period)
     db_session.flush()
     return period
@@ -45,6 +62,7 @@ def _create_assignment(
     shift_slot_id: int | None,
 ) -> ScheduleAssignmentModel:
     assignment = ScheduleAssignmentModel(
+        organization_id=TEST_ORG_ID,
         period_id=period_id,
         staff_id=staff_id,
         date=assign_date,

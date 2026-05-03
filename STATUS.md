@@ -1,15 +1,18 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-02 (Phase 0-1 認証実装 完了 🎉、本日のセッション終了) | ブランチ: main
+> 最終更新: 2026-05-03 (Phase 0-2 マルチテナント分離 実装完了) | ブランチ: main
 
 ## 現在のフェーズ
 
 **MVP 完成 → 無料SaaS化フェーズ** — 招待制を廃し、2026-06-07 一般公開（フル公開）を目標に運用計画を策定。
 - 運用計画: 確定済（未確定事項6項目すべて決定、design-doc-reviewer の Critical/Major 反映済）
-- **Phase 0-1 認証実装: ✅ 完了**（全 6 サブタスク、Auth.js v5 + JWE + Mailpit、105+75+3 件 PASS）
-- 次回再開時: **Phase 0-2 マルチテナント化**（全テーブルに `organization_id`、API スコープ徹底、20h 見積）
-  - 進め方は未確定（Planner → Worker × N が推奨）。Phase 0-1 と同じ流れで再開可能
-  - 影響範囲調査と工数内訳は `docs/plans/2026-04-28-operation-plan.md` § Phase 0 に反映済
+- **Phase 0-1 認証実装: ✅ 完了**（全 6 サブタスク、Auth.js v5 + JWE + Mailpit）
+- **Phase 0-2 マルチテナント化: ✅ 実装完了**（全テーブルに `organization_id`、API スコープ徹底、テナント分離テスト追加）
+  - 全10業務テーブルに `organization_id` カラム追加（models.py + DB マイグレーション）
+  - 全リポジトリの全メソッドに `org_id: str` フィルタを追加
+  - 全 API エンドポイントが `Depends(get_current_org_id)` を使用
+  - `get_current_org_id` Dependency を `auth.py` に追加
+  - テナント分離テスト 2件追加（`tests/auth/test_org_isolation.py`）
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md`
 
 ## 実装済み機能
@@ -73,11 +76,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
+| (最新) | feat: implement organization_id multi-tenant isolation (Phase 0-2) |
 | `da062cc` | feat(auth): add E2E auth bypass and complete Phase 0-1 authentication |
 | `06d00b5` | feat(auth): add middleware, SessionProvider, UserNav, 401 redirect |
 | `b6e7024` | feat(auth): apply get_current_user dependency to all 32 endpoints |
 | `c4da8bc` | feat(auth): set up Auth.js v5 with custom HTTP adapter and Mailpit |
-| `9737273` | feat(auth): add internal auth API for Auth.js HTTP adapter |
 
 ## TODO / フェーズ2 候補
 

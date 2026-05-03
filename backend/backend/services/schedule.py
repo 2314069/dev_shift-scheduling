@@ -31,8 +31,9 @@ class OptimizeResult:
 
 
 class ScheduleService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, org_id: str):
         self._db = db
+        self._org_id = org_id
         self._schedule_repo = ScheduleRepository(db)
         self._staff_repo = StaffRepository(db)
         self._slot_repo = ShiftSlotRepository(db)
@@ -44,62 +45,66 @@ class ScheduleService:
 
     def create_period(self, start_date: date, end_date: date) -> SchedulePeriod:
         return self._schedule_repo.create_period(
-            start_date=start_date, end_date=end_date
+            self._org_id, start_date=start_date, end_date=end_date
         )
 
     def list_periods(self) -> list[SchedulePeriod]:
-        return self._schedule_repo.list_periods()
+        return self._schedule_repo.list_periods(self._org_id)
 
     def get_schedule(self, period_id: int) -> ScheduleResponse | None:
-        period = self._schedule_repo.get_period(period_id)
+        period = self._schedule_repo.get_period(self._org_id, period_id)
         if period is None:
             return None
-        assignments = self._schedule_repo.get_assignments_by_period(period_id)
+        assignments = self._schedule_repo.get_assignments_by_period(self._org_id, period_id)
         return ScheduleResponse(period=period, assignments=assignments)
 
     def update_assignment(
         self, period_id: int, assignment_id: int, shift_slot_id: int | None
     ) -> ScheduleAssignment | None:
-        assignment = self._schedule_repo.get_assignment(assignment_id)
+        assignment = self._schedule_repo.get_assignment(self._org_id, assignment_id)
         if not assignment or assignment.period_id != period_id:
             return None
-        return self._schedule_repo.update_assignment(assignment_id, shift_slot_id)
+        return self._schedule_repo.update_assignment(self._org_id, assignment_id, shift_slot_id)
 
     def publish(self, period_id: int) -> SchedulePeriod | None:
-        period = self._schedule_repo.get_period(period_id)
+        period = self._schedule_repo.get_period(self._org_id, period_id)
         if period is None:
             return None
-        return self._schedule_repo.update_period_status(period_id, "published")
+        return self._schedule_repo.update_period_status(self._org_id, period_id, "published")
 
     def optimize(self, period_id: int) -> OptimizeResult | None:
-        period = self._schedule_repo.get_period(period_id)
+        period = self._schedule_repo.get_period(self._org_id, period_id)
         if period is None:
             return None
 
         # 既存の自動生成結果を削除（手動編集は保持）
-        self._schedule_repo.delete_auto_assignments(period_id)
+        self._schedule_repo.delete_auto_assignments(self._org_id, period_id)
 
         # ソルバーに必要なデータを収集
-        staff_list = self._staff_repo.list_all()
-        slots = self._slot_repo.list_all()
-        requirements = self._requirement_repo.list_all()
+        staff_list = self._staff_repo.list_all(self._org_id)
+        slots = self._slot_repo.list_all(self._org_id)
+        requirements = self._requirement_repo.list_all(self._org_id)
         requests = self._request_repo.list_by_date_range(
-            period.start_date, period.end_date
+            self._org_id, period.start_date, period.end_date
         )
-        config = self._config_repo.get_or_create_default()
-        role_requirements = self._role_req_repo.list_all()
+        config = self._config_repo.get_or_create(self._org_id)
+        role_requirements = self._role_req_repo.list_all(self._org_id)
 
         # スキル関連データ取得
-        staff_skills_data = self._skill_repo.list_all_staff_skills()
-        skill_requirements_data = self._skill_repo.list_skill_requirements()
+        staff_skills_data = self._skill_repo.list_all_staff_skills(self._org_id)
+        skill_requirements_data = self._skill_repo.list_skill_requirements(self._org_id)
 
         # 月またぎ連勤チェック: 直前公開済み期間の末尾勤務実績を取得
         prefix_assignments: dict[int, list] = {}
-        prev_period = self._schedule_repo.get_published_period_ending_before(period.start_date)
+        prev_period = self._schedule_repo.get_published_period_ending_before(
+            self._org_id, period.start_date
+        )
         if prev_period is not None:
             n = config.max_consecutive_days - 1
             tail_start = prev_period.end_date - timedelta(days=n - 1)
-            prev_assignments = self._schedule_repo.get_assignments_by_period(prev_period.id)
+            prev_assignments = self._schedule_repo.get_assignments_by_period(
+                self._org_id, prev_period.id
+            )
             for a in prev_assignments:
                 if a.shift_slot_id is not None and a.date >= tail_start:
                     prefix_assignments.setdefault(a.staff_id, []).append(a.date)
@@ -121,9 +126,9 @@ class ScheduleService:
 
         if result["status"] == "optimal":
             self._schedule_repo.bulk_create_assignments(
-                period_id, result["assignments"]
+                self._org_id, period_id, result["assignments"]
             )
-            saved = self._schedule_repo.get_assignments_by_period(period_id)
+            saved = self._schedule_repo.get_assignments_by_period(self._org_id, period_id)
             return OptimizeResult(
                 status=result["status"],
                 message=result["message"],

@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base
 from backend.models import (
+    Organization,
     StaffModel,
     ShiftSlotModel,
     StaffRequestModel,
@@ -12,6 +13,9 @@ from backend.models import (
     StaffingRequirementModel,
 )
 
+# テスト用の組織 ID（FK 制約を満たすため事前に作成する）
+_ORG_ID = "test-org-models"
+
 
 @pytest.fixture
 def db_session():
@@ -19,12 +23,23 @@ def db_session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+
+    # Organization を作成（FK 制約を満たすため）
+    org = Organization(id=_ORG_ID, name="Test Org", slug="test-org-models")
+    session.add(org)
+    session.commit()
+
     yield session
     session.close()
 
 
 def test_create_staff(db_session):
-    staff = StaffModel(name="田中太郎", role="リーダー", max_days_per_week=5)
+    staff = StaffModel(
+        organization_id=_ORG_ID,
+        name="田中太郎",
+        role="リーダー",
+        max_days_per_week=5,
+    )
     db_session.add(staff)
     db_session.commit()
     assert staff.id is not None
@@ -34,7 +49,12 @@ def test_create_staff(db_session):
 def test_create_shift_slot(db_session):
     from datetime import time
 
-    slot = ShiftSlotModel(name="早番", start_time=time(9, 0), end_time=time(17, 0))
+    slot = ShiftSlotModel(
+        organization_id=_ORG_ID,
+        name="早番",
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+    )
     db_session.add(slot)
     db_session.commit()
     assert slot.id is not None
@@ -43,12 +63,23 @@ def test_create_shift_slot(db_session):
 def test_create_staff_request(db_session):
     from datetime import date, time
 
-    staff = StaffModel(name="田中太郎", role="一般", max_days_per_week=5)
-    slot = ShiftSlotModel(name="早番", start_time=time(9, 0), end_time=time(17, 0))
+    staff = StaffModel(
+        organization_id=_ORG_ID,
+        name="田中太郎",
+        role="一般",
+        max_days_per_week=5,
+    )
+    slot = ShiftSlotModel(
+        organization_id=_ORG_ID,
+        name="早番",
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+    )
     db_session.add_all([staff, slot])
     db_session.commit()
 
     request = StaffRequestModel(
+        organization_id=_ORG_ID,
         staff_id=staff.id,
         date=date(2026, 3, 1),
         shift_slot_id=slot.id,
@@ -62,12 +93,23 @@ def test_create_staff_request(db_session):
 def test_create_schedule_period_and_assignment(db_session):
     from datetime import date, time
 
-    staff = StaffModel(name="田中太郎", role="一般", max_days_per_week=5)
-    slot = ShiftSlotModel(name="早番", start_time=time(9, 0), end_time=time(17, 0))
+    staff = StaffModel(
+        organization_id=_ORG_ID,
+        name="田中太郎",
+        role="一般",
+        max_days_per_week=5,
+    )
+    slot = ShiftSlotModel(
+        organization_id=_ORG_ID,
+        name="早番",
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+    )
     db_session.add_all([staff, slot])
     db_session.commit()
 
     period = SchedulePeriodModel(
+        organization_id=_ORG_ID,
         start_date=date(2026, 3, 1),
         end_date=date(2026, 3, 15),
         status="draft",
@@ -76,6 +118,7 @@ def test_create_schedule_period_and_assignment(db_session):
     db_session.commit()
 
     assignment = ScheduleAssignmentModel(
+        organization_id=_ORG_ID,
         period_id=period.id,
         staff_id=staff.id,
         date=date(2026, 3, 1),
@@ -90,11 +133,17 @@ def test_create_schedule_period_and_assignment(db_session):
 def test_create_staffing_requirement(db_session):
     from datetime import time
 
-    slot = ShiftSlotModel(name="早番", start_time=time(9, 0), end_time=time(17, 0))
+    slot = ShiftSlotModel(
+        organization_id=_ORG_ID,
+        name="早番",
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+    )
     db_session.add(slot)
     db_session.commit()
 
     req = StaffingRequirementModel(
+        organization_id=_ORG_ID,
         shift_slot_id=slot.id,
         day_type="weekday",
         min_count=3,

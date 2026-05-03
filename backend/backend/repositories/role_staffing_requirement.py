@@ -16,23 +16,33 @@ class RoleStaffingRequirementRepository:
             day_type=model.day_type,
             role=model.role,
             min_count=model.min_count,
+            organization_id=model.organization_id,
         )
 
-    def list_all(self) -> list[RoleStaffingRequirement]:
+    def list_all(self, org_id: str) -> list[RoleStaffingRequirement]:
         return [
             self._to_domain(r)
-            for r in self.db.query(RoleStaffingRequirementModel).all()
+            for r in self.db.query(RoleStaffingRequirementModel)
+            .filter(RoleStaffingRequirementModel.organization_id == org_id)
+            .all()
         ]
 
-    def create(self, **kwargs) -> RoleStaffingRequirement:
-        model = RoleStaffingRequirementModel(**kwargs)
+    def create(self, org_id: str, **kwargs) -> RoleStaffingRequirement:
+        model = RoleStaffingRequirementModel(organization_id=org_id, **kwargs)
         self.db.add(model)
         self.db.commit()
         self.db.refresh(model)
         return self._to_domain(model)
 
-    def delete(self, req_id: int) -> bool:
-        model = self.db.get(RoleStaffingRequirementModel, req_id)
+    def delete(self, org_id: str, req_id: int) -> bool:
+        model = (
+            self.db.query(RoleStaffingRequirementModel)
+            .filter(
+                RoleStaffingRequirementModel.id == req_id,
+                RoleStaffingRequirementModel.organization_id == org_id,
+            )
+            .first()
+        )
         if not model:
             return False
         self.db.delete(model)

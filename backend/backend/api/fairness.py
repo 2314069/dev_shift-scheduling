@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
 from backend.models import (
     ScheduleAssignmentModel,
     SchedulePeriodModel,
     ShiftSlotModel,
     StaffModel,
-    User,
 )
 from backend.schemas import (
     FairnessDashboardResponse,
@@ -32,12 +31,15 @@ def _classify_shift(shift_name: str) -> str:
 def get_fairness_dashboard(
     period_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ) -> FairnessDashboardResponse:
     """指定期間の公平性ダッシュボードデータを返す。"""
     period = (
         db.query(SchedulePeriodModel)
-        .filter(SchedulePeriodModel.id == period_id)
+        .filter(
+            SchedulePeriodModel.id == period_id,
+            SchedulePeriodModel.organization_id == org_id,
+        )
         .first()
     )
     if period is None:
@@ -51,6 +53,7 @@ def get_fairness_dashboard(
         )
         .filter(
             ScheduleAssignmentModel.period_id == period_id,
+            ScheduleAssignmentModel.organization_id == org_id,
             ScheduleAssignmentModel.shift_slot_id.isnot(None),
         )
         .all()
@@ -61,7 +64,12 @@ def get_fairness_dashboard(
     slots: dict[int, ShiftSlotModel] = {}
     if slot_ids:
         slot_rows = (
-            db.query(ShiftSlotModel).filter(ShiftSlotModel.id.in_(slot_ids)).all()
+            db.query(ShiftSlotModel)
+            .filter(
+                ShiftSlotModel.id.in_(slot_ids),
+                ShiftSlotModel.organization_id == org_id,
+            )
+            .all()
         )
         slots = {s.id: s for s in slot_rows}
 

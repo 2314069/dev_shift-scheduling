@@ -1,3 +1,6 @@
+from tests.conftest import TEST_ORG_ID
+
+
 def test_create_schedule_period(client):
     response = client.post(
         "/api/schedules",
@@ -38,6 +41,7 @@ def test_get_published_period_ending_before(client, db_session):
 
     # 公開済み期間（3月）を作成
     march = SchedulePeriodModel(
+        organization_id=TEST_ORG_ID,
         start_date=date(2026, 3, 1),
         end_date=date(2026, 3, 31),
         status="published",
@@ -48,7 +52,7 @@ def test_get_published_period_ending_before(client, db_session):
     repo = ScheduleRepository(db_session)
 
     # 4月のスケジュールを最適化する際に3月を見つける
-    result = repo.get_published_period_ending_before(date(2026, 4, 1))
+    result = repo.get_published_period_ending_before(TEST_ORG_ID, date(2026, 4, 1))
     assert result is not None
     assert result.end_date == date(2026, 3, 31)
 
@@ -59,5 +63,5 @@ def test_get_published_period_ending_before_not_found(client, db_session):
     from backend.repositories import ScheduleRepository
 
     repo = ScheduleRepository(db_session)
-    result = repo.get_published_period_ending_before(date(2026, 4, 1))
+    result = repo.get_published_period_ending_before(TEST_ORG_ID, date(2026, 4, 1))
     assert result is None

@@ -80,13 +80,27 @@ def auth_client(auth_db_session, monkeypatch):
 
 @pytest.fixture
 def existing_user(auth_db_session) -> User:
-    """DB に保存済みのアクティブユーザー。"""
+    """DB に保存済みのアクティブユーザー。OrganizationMember 付きで作成する。"""
+    from backend.models import Organization, OrganizationMember
+
+    org = Organization(id="auth-test-org-id", name="Auth Test Org", slug="auth-test-org")
+    auth_db_session.add(org)
+    auth_db_session.flush()
+
     user = User(
         id=str(uuid.uuid4()),
         email="active@example.com",
         name="Active User",
     )
     auth_db_session.add(user)
+    auth_db_session.flush()
+
+    member = OrganizationMember(
+        organization_id="auth-test-org-id",
+        user_id=user.id,
+        role="owner",
+    )
+    auth_db_session.add(member)
     auth_db_session.commit()
     auth_db_session.refresh(user)
     return user

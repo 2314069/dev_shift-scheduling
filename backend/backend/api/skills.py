@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.models import User
 from backend.repositories import SkillRepository
 from backend.schemas import StaffSkillCreate, StaffSkillResponse
 
@@ -14,10 +13,10 @@ router = APIRouter(prefix="/api/staff", tags=["skills"])
 def list_staff_skills(
     staff_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = SkillRepository(db)
-    return repo.list_skills_by_staff(staff_id)
+    return repo.list_skills_by_staff(org_id, staff_id)
 
 
 @router.post("/{staff_id}/skills", response_model=StaffSkillResponse, status_code=201)
@@ -25,10 +24,10 @@ def add_staff_skill(
     staff_id: int,
     data: StaffSkillCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = SkillRepository(db)
-    result = repo.add_skill(staff_id=staff_id, skill=data.skill)
+    result = repo.add_skill(org_id=org_id, staff_id=staff_id, skill=data.skill)
     if result is None:
         raise HTTPException(status_code=404, detail="Staff not found")
     return result
@@ -39,8 +38,8 @@ def delete_staff_skill(
     staff_id: int,
     skill_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = SkillRepository(db)
-    if not repo.delete_skill(skill_id, staff_id=staff_id):
+    if not repo.delete_skill(org_id, skill_id, staff_id=staff_id):
         raise HTTPException(status_code=404, detail="Skill not found")

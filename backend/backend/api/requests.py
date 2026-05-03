@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.models import User
 from backend.schemas import StaffRequestBulkCreate, StaffRequestResponse
 from backend.services import RequestService
 
@@ -15,9 +14,9 @@ def list_requests(
     period_id: int = Query(...),
     staff_id: int | None = Query(None),
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = RequestService(db)
+    service = RequestService(db, org_id)
     try:
         return service.list_requests_for_period(period_id, staff_id=staff_id)
     except ValueError as e:
@@ -28,8 +27,8 @@ def list_requests(
 def bulk_create_requests(
     data: StaffRequestBulkCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
-    service = RequestService(db)
+    service = RequestService(db, org_id)
     items = [item.model_dump() for item in data.requests]
     return service.bulk_create_requests(items)

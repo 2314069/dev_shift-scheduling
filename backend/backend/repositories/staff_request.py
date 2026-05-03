@@ -18,15 +18,18 @@ class StaffRequestRepository:
             date=model.date,
             type=model.type,
             shift_slot_id=model.shift_slot_id,
+            organization_id=model.organization_id,
         )
 
     def list_by_date_range(
         self,
+        org_id: str,
         start_date: date,
         end_date: date,
         staff_id: int | None = None,
     ) -> list[StaffRequest]:
         query = self.db.query(StaffRequestModel).filter(
+            StaffRequestModel.organization_id == org_id,
             StaffRequestModel.date >= start_date,
             StaffRequestModel.date <= end_date,
         )
@@ -34,10 +37,10 @@ class StaffRequestRepository:
             query = query.filter(StaffRequestModel.staff_id == staff_id)
         return [self._to_domain(r) for r in query.all()]
 
-    def bulk_create(self, items: list[dict]) -> list[StaffRequest]:
+    def bulk_create(self, org_id: str, items: list[dict]) -> list[StaffRequest]:
         created = []
         for item in items:
-            model = StaffRequestModel(**item)
+            model = StaffRequestModel(organization_id=org_id, **item)
             self.db.add(model)
             created.append(model)
         self.db.commit()

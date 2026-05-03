@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.auth import get_current_user
+from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.models import User
 from backend.repositories import RoleStaffingRequirementRepository
 from backend.schemas import (
     RoleStaffingRequirementCreate,
@@ -18,30 +17,30 @@ router = APIRouter(
 @router.get("", response_model=list[RoleStaffingRequirementResponse])
 def list_role_staffing_requirements(
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = RoleStaffingRequirementRepository(db)
-    return repo.list_all()
+    return repo.list_all(org_id)
 
 
 @router.post("", response_model=RoleStaffingRequirementResponse, status_code=201)
 def create_role_staffing_requirement(
     data: RoleStaffingRequirementCreate,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = RoleStaffingRequirementRepository(db)
-    return repo.create(**data.model_dump())
+    return repo.create(org_id, **data.model_dump())
 
 
 @router.delete("/{req_id}", status_code=204)
 def delete_role_staffing_requirement(
     req_id: int,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
 ):
     repo = RoleStaffingRequirementRepository(db)
-    if not repo.delete(req_id):
+    if not repo.delete(org_id, req_id):
         raise HTTPException(
             status_code=404, detail="Role staffing requirement not found"
         )
