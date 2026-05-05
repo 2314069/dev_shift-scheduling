@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-03 (Phase 1-7 Alembic 導入完了) | ブランチ: main
+> 最終更新: 2026-05-05 (Phase 1-1 オンボーディング 設計フェーズ着手) | ブランチ: claude/plan-next-tasks-saStF
 
 ## 現在のフェーズ
 
@@ -22,6 +22,9 @@
   - **[#m7] マイグレーションのトランザクション統合**: ✅ 完了（`engine.begin()` で単一トランザクション）
   - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: 🔜 Phase 1-1（オンボーディング）に合流予定
   - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
+- **Phase 1-1 オンボーディング: 🔄 設計フェーズ進行中**（M3 ブロッカー解消、新規ユーザーの組織作成フロー）
+  - Orchestrator によるタスク分解完了: `docs/plans/2026-05-05-phase1-1-onboarding-decomposition.md`
+  - Planner による技術設計: 進行中
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
