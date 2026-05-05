@@ -24,7 +24,8 @@
   - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
 - **Phase 1-1 オンボーディング: 🔄 設計フェーズ進行中**（M3 ブロッカー解消、新規ユーザーの組織作成フロー）
   - Orchestrator によるタスク分解完了: `docs/plans/2026-05-05-phase1-1-onboarding-decomposition.md`
-  - Planner による技術設計: 進行中
+  - Planner による技術設計完了: `docs/plans/2026-05-05-phase1-1-onboarding-design.md`（10 項目の意思決定 + API/フロー/Worker 分割）
+  - Designer による UI/UX 設計: 進行中
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
