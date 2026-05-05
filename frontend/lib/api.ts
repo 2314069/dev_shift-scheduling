@@ -107,3 +107,69 @@ export async function fetchMyOrganizations(): Promise<
 > {
   return apiFetch<OrganizationMembershipResponse[]>("/api/organizations/me");
 }
+
+// ─── Phase 1-8 退会・データ削除フロー ───────────────────────────────────────
+
+/**
+ * 自アカウントを完全削除する（個人情報保護法対応）
+ *
+ * 成功: 204 → void を返す
+ * 401: セッション切れ → apiFetch が /signin にリダイレクト
+ * 500: ApiError を throw
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/me`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  if (res.status === 401 && typeof window !== "undefined") {
+    const callbackUrl = encodeURIComponent(window.location.pathname);
+    window.location.href = `/signin?callbackUrl=${callbackUrl}`;
+    throw new Error("Unauthorized");
+  }
+
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // JSON parse 失敗時は status のみのエラーメッセージを使う
+    }
+    throw new ApiError(res.status, detail);
+  }
+}
+
+/**
+ * 指定組織を完全削除する（個人情報保護法対応）
+ *
+ * 成功: 204 → void を返す
+ * 403: 非 owner → ApiError(403, ...) を throw
+ * 404: 組織なし → ApiError(404, ...) を throw
+ */
+export async function deleteOrganization(orgId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/organizations/${orgId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  if (res.status === 401 && typeof window !== "undefined") {
+    const callbackUrl = encodeURIComponent(window.location.pathname);
+    window.location.href = `/signin?callbackUrl=${callbackUrl}`;
+    throw new Error("Unauthorized");
+  }
+
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // JSON parse 失敗時は status のみのエラーメッセージを使う
+    }
+    throw new ApiError(res.status, detail);
+  }
+}

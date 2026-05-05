@@ -1,6 +1,6 @@
-"""GET /api/me — 認証ユーザー情報 + 所属組織 + オンボーディング状態の統合レスポンス。"""
+"""GET /api/me, DELETE /api/me — 認証ユーザー情報 + 所属組織 + オンボーディング状態 / アカウント削除。"""
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from backend.auth import get_current_user
@@ -97,3 +97,49 @@ def get_me(
         current_organization=current_organization,
         onboarding=onboarding,
     )
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """アカウントと関連データを完全削除する（個人情報保護法対応・物理削除）。
+
+    動作:
+    1. ユーザーが owner の組織は組織ごと完全削除（関連データを含む）
+    2. ユーザーの OrganizationMember を全て削除（非 owner 所属も削除）
+    3. User 自体を物理削除（deleted_at でなく DELETE）
+
+    verification_tokens はメールアドレス（identifier）をキーとして保存されており、
+    User の FK を持たないため孤児行として残る可能性がある（将来課題: Phase 1-8 既知制約）。
+
+    レスポンス: 204 No Content
+    """
+    # owner 組織を取得して完全削除
+    owner_members = (
+        db.query(OrganizationMember)
+        .filter(
+            OrganizationMember.user_id == current_user.id,
+            OrganizationMember.role == "owner",
+        )
+        .all()
+    )
+
+    # organizations.py の _delete_organization_data をインポートして再利用
+    from backend.api.organizations import _delete_organization_data
+
+    for member in owner_members:
+        _delete_organization_data(db, member.organization_id)
+
+    # 非 owner の OrganizationMember を削除（owner は上記で既に削除済み）
+    db.query(OrganizationMember).filter(
+        OrganizationMember.user_id == current_user.id
+    ).delete(synchronize_session=False)
+
+    # User を物理削除
+    db.query(User).filter(User.id == current_user.id).delete(synchronize_session=False)
+
+    db.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

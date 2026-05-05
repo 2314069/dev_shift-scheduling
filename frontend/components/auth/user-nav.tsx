@@ -101,6 +101,10 @@ export function UserNav({ orgName }: UserNavProps = {}) {
         >
           ログアウト
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer text-destructive">
+          <Link href="/account/delete">アカウント削除</Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

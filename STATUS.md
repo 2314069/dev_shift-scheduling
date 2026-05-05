@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-05 (Phase 1-1 オンボーディング完了) | ブランチ: claude/plan-next-tasks-saStF
+> 最終更新: 2026-05-05 (Phase 1-1 / 1-8 完了) | ブランチ: claude/plan-next-tasks-saStF
 
 ## 現在のフェーズ
 
@@ -72,6 +72,7 @@
 | スキル・資格配置制約 | `optimizer/solver.py`, `api/skills.py`, `api/skill_requirements.py`, `repositories/skill.py` | ✅ 完了 |
 | 公平性ダッシュボードAPI | `api/fairness.py` | ✅ 完了 |
 | 組織管理 API | `api/organizations.py`, `api/me.py` | ✅ 完了 |
+| アカウント・組織削除 API | `api/me.py` (`DELETE /api/me`), `api/organizations.py` (`DELETE`) | ✅ 完了 (Phase 1-8) |
 
 ### フロントエンド (`frontend/`)
 
@@ -91,12 +92,13 @@
 | 公平性ダッシュボード画面 | `components/fairness-dashboard.tsx`, `app/schedule/page.tsx` | ✅ 完了 |
 | 業種別プリセット制約テンプレート | `components/solver-config-panel.tsx` | ✅ 完了 |
 | オンボーディング画面 | `app/(onboarding)/` | ✅ 完了 |
+| アカウント削除画面 | `app/account/delete/page.tsx`, `components/account/delete-account-form.tsx` | ✅ 完了 (Phase 1-8) |
 
 ## テスト状況
 
 ```
-バックエンド: 195 passed (2026-05-05 時点, Major-1 race condition 修正で +3)
-フロントエンド: 164 passed (2026-05-05 時点, Major-2 fetchMeServer cache 化で +4)
+バックエンド: 212 passed (2026-05-05 時点, Phase 1-8 退会フロー +17 件含む)
+フロントエンド: 168 passed (2026-05-05 時点, アカウント削除フォーム +5 件含む)
 E2E (Playwright): 6 specs (うち 3 件 skip, 2026-05-05 時点, onboarding.spec.ts 追加)
 ```
 
