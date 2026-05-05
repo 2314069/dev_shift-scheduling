@@ -209,8 +209,9 @@ describe("GettingStartedChecklist", () => {
     });
   });
 
-  describe("ログアウトリンク", () => {
-    it("ログアウトリンクが表示される", () => {
+  describe("ログアウトボタン", () => {
+    // Major-4 対応で <Link href="/api/auth/signout"> から SignOutLink (button + signOut) に変更
+    it("ログアウトボタンが表示される", () => {
       render(
         <GettingStartedChecklist
           staffCount={0}
@@ -219,20 +220,8 @@ describe("GettingStartedChecklist", () => {
         />,
       );
       expect(
-        screen.getByRole("link", { name: "ログアウト" }),
+        screen.getByRole("button", { name: "ログアウト" }),
       ).toBeInTheDocument();
-    });
-
-    it("ログアウトリンクの href が /api/auth/signout である", () => {
-      render(
-        <GettingStartedChecklist
-          staffCount={0}
-          shiftSlotCount={0}
-          isComplete={false}
-        />,
-      );
-      const link = screen.getByRole("link", { name: "ログアウト" });
-      expect(link).toHaveAttribute("href", "/api/auth/signout");
     });
   });
 });

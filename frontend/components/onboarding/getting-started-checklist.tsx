@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SignOutLink } from "@/components/auth/sign-out-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -169,13 +170,7 @@ export function GettingStartedChecklist({
       </Card>
 
       <div className="mt-4 text-center">
-        {/* Auth.js signOut は Server Action のため API route 経由でログアウトする */}
-        <Link
-          href="/api/auth/signout"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          ログアウト
-        </Link>
+        <SignOutLink />
       </div>
     </div>
   );

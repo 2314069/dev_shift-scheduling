@@ -60,6 +60,11 @@ export default function SchedulePage() {
   const [optimizing, setOptimizing] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  // マスタデータ取得失敗フラグ。
+  // apiFetch 失敗時に staffList=[] のままになっても「初期設定が必要」が誤表示されないよう、
+  // エラー時は OnboardingHintCard を非表示にする（Major-3 対応）。
+  const [referenceDataLoaded, setReferenceDataLoaded] = useState(false);
+
   // Diagnostics
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
 
@@ -92,9 +97,12 @@ export default function SchedulePage() {
         setStaffList(staffData);
         setShiftSlots(slotsData);
         setRequirements(reqData);
+        // 正常取得できた場合のみフラグを立てる（エラー時は false のまま＝カード非表示）
+        setReferenceDataLoaded(true);
       } catch (e) {
         console.error(e);
         toast.error("マスタデータの取得に失敗しました");
+        // referenceDataLoaded は false のまま → OnboardingHintCard を非表示にする
       }
     }
     fetchReferenceData();
@@ -231,11 +239,14 @@ export default function SchedulePage() {
   const isDraft = selectedPeriod?.status === "draft";
   const hasAssignments = assignments.length > 0;
 
-  // OnboardingHintCard はデータ読み込み完了後（loadingPeriods=false）に表示判定する。
-  // staffList / shiftSlots はクライアント state で既に保持しているため、
-  // サーバー取得せずにそのまま props として渡す（UI 設計書 §10.1 最小変更案に従う）。
+  // OnboardingHintCard はデータ読み込み完了後（loadingPeriods=false）かつ
+  // referenceDataLoaded=true（マスタデータ取得が成功）のときのみ表示判定する。
+  // referenceDataLoaded=false のままだと apiFetch 失敗時に staffList=[] で
+  // 「初期設定が必要」が誤表示されるため、Major-3 対応として明示的にガードする。
   const isSetupIncomplete =
-    !loadingPeriods && (staffList.length === 0 || shiftSlots.length === 0);
+    !loadingPeriods &&
+    referenceDataLoaded &&
+    (staffList.length === 0 || shiftSlots.length === 0);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
