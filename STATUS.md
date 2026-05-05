@@ -35,6 +35,13 @@
     - 表記統一「店舗」、slug は `uuid.uuid4().hex[:12]` 自動生成、JWT 拡張なし、スキーマ変更なし
   - Phase 4 テスト完了: backend 192 / frontend 160 / E2E 6 (3 skip)
   - テスターレポート: `docs/reviews/2026-05-05-phase1-1-tester-report.md`
+  - Phase 5 レビュー: `docs/reviews/2026-05-05-phase1-1-code-review.md`（Conditional Pass / Critical 0 / Major 4 / Minor 8）
+  - Phase 5.5 差し戻し対応:
+    - **Major-1 owner 重複 race condition**: ✅ 修正完了（部分 UNIQUE インデックス追加 / Alembic `0002_add_uq_one_owner_per_user.py`、INSERT→IntegrityError catch、+3 件テスト）
+    - **Major-2 `fetchMeServer` 二重呼出**: ✅ 修正完了（react の `cache()` でリクエストスコープメモ化）
+    - Minor-1, Minor-2, Minor-5 も同時に対応
+    - Major-3, Major-4 / 残 Minor は将来課題に送り
+  - 最終テスト件数: backend 192 → **195** / frontend 160 → **164** すべて PASS
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
@@ -86,8 +93,8 @@
 ## テスト状況
 
 ```
-バックエンド: 192 passed (2026-05-05 時点, Phase 1-1 オンボーディング + テナント分離テスト追加)
-フロントエンド: 160 passed (2026-05-05 時点, オンボーディング画面テスト +85件)
+バックエンド: 195 passed (2026-05-05 時点, Major-1 race condition 修正で +3)
+フロントエンド: 164 passed (2026-05-05 時点, Major-2 fetchMeServer cache 化で +4)
 E2E (Playwright): 6 specs (うち 3 件 skip, 2026-05-05 時点, onboarding.spec.ts 追加)
 ```
 
