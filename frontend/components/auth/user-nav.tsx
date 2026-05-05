@@ -6,6 +6,12 @@
  * useSession() でセッション状態を取得し、
  * 未ログイン時はログインボタン、ログイン時はアバター + ドロップダウンを表示する。
  * layout.tsx を Server Component のまま維持するために独立した Client Component とする。
+ *
+ * orgName props:
+ *   - undefined（状態 B: 店舗未所属）→ メールアドレスのみ表示
+ *   - string（状態 C: 店舗所属あり）→ メールアドレス + 店舗名を表示
+ *
+ * @see docs/plans/2026-05-05-phase1-1-onboarding-ui-design.md §4.4
  */
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
@@ -18,6 +24,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+
+interface UserNavProps {
+  /** 店舗所属あり（状態 C）のとき店舗名を渡す。未所属（状態 B）は undefined */
+  orgName?: string;
+}
 
 /**
  * ユーザー名またはメールアドレスからアバターのイニシャルを生成する
@@ -39,7 +50,7 @@ function getInitials(name?: string | null, email?: string | null): string {
   return "??";
 }
 
-export function UserNav() {
+export function UserNav({ orgName }: UserNavProps = {}) {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
@@ -75,8 +86,13 @@ export function UserNav() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <div className="px-2 py-1.5">
+        <div className="px-2 py-1.5 space-y-0.5">
           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+          {orgName && (
+            <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+              {orgName}
+            </p>
+          )}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem

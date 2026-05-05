@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-05 (Phase 1-1 オンボーディング 設計フェーズ着手) | ブランチ: claude/plan-next-tasks-saStF
+> 最終更新: 2026-05-05 (Phase 1-1 オンボーディング Phase 3 実装完了) | ブランチ: claude/plan-next-tasks-saStF
 
 ## 現在のフェーズ
 
@@ -22,11 +22,17 @@
   - **[#m7] マイグレーションのトランザクション統合**: ✅ 完了（`engine.begin()` で単一トランザクション）
   - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: 🔜 Phase 1-1（オンボーディング）に合流予定
   - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
-- **Phase 1-1 オンボーディング: 🔄 設計フェーズ進行中**（M3 ブロッカー解消、新規ユーザーの組織作成フロー）
+- **Phase 1-1 オンボーディング: 🔄 Phase 3 実装完了 / Phase 4 テスト待ち**（M3 ブロッカー解消、新規ユーザーの組織作成フロー）
   - Orchestrator によるタスク分解完了: `docs/plans/2026-05-05-phase1-1-onboarding-decomposition.md`
   - Planner による技術設計完了: `docs/plans/2026-05-05-phase1-1-onboarding-design.md`（10 項目の意思決定 + API/フロー/Worker 分割）
   - Designer による UI/UX 設計完了: `docs/plans/2026-05-05-phase1-1-onboarding-ui-design.md`（「店舗」表記統一、Card 縦スタックチェックリスト、ghost ボタン採用等）
-  - Phase 2.5 設計レビュー（ユーザー承認）: 待ち
+  - Phase 2.5 設計レビュー: ✅ ユーザー承認済
+  - Phase 3 実装完了:
+    - Worker A (BE): `api/organizations.py`, `api/me.py` 新規 + ルーター登録 / schemas 追加。バックエンド 126 → 166 tests (+40)
+    - Worker B (FE オンボ画面): `(onboarding)/` ルートグループ、`CreateOrgForm` / `GettingStartedChecklist` / `OnboardingHintCard` + ページ
+    - Worker C (FE middleware/ナビ/ルート): `app/page.tsx` サーバー化 + 3 状態分岐、`MainNav` 抽出、`schedule` ページに `OnboardingHintCard` 埋め込み
+    - フロントエンド 75 → 160 tests (+85)、全 PASS
+    - 表記統一「店舗」、slug は `uuid.uuid4().hex[:12]` 自動生成、JWT 拡張なし、スキーマ変更なし
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換

@@ -1,6 +1,27 @@
-import type { FairnessDashboardData } from "@/lib/types";
+import type {
+  FairnessDashboardData,
+  MeResponse,
+  OrganizationMembershipResponse,
+  OrganizationResponse,
+} from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/**
+ * API エラークラス
+ *
+ * apiFetch が throw するエラー型。status コードと detail メッセージを持つ。
+ * 409「既に所有」vs「slug 衝突」の判別に detail を使う（Planner §4.2 参照）。
+ */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly detail: string,
+  ) {
+    super(`API error: ${status} - ${detail}`);
+    this.name = "ApiError";
+  }
+}
 
 export async function apiFetch<T>(
   path: string,
@@ -32,4 +53,57 @@ export async function fetchFairnessDashboard(
   periodId: number,
 ): Promise<FairnessDashboardData> {
   return apiFetch<FairnessDashboardData>(`/api/schedules/${periodId}/fairness`);
+}
+
+// ─── Phase 1-1 オンボーディング API ────────────────────────────────────────
+
+/**
+ * 店舗（組織）を新規作成する
+ *
+ * 成功: 201 → OrganizationResponse を返す
+ * 409「You already own an organization」→ ApiError(409, ...) を throw
+ * 409「slug 衝突」→ ApiError(409, ...) を throw
+ * 422 → ApiError(422, ...) を throw
+ * その他: ApiError を throw
+ *
+ * 呼び出し側で 409 detail を確認して「既所有」か「slug 衝突」を区別する（Planner §4.2 参照）。
+ */
+export async function createOrganization(data: {
+  name: string;
+}): Promise<OrganizationResponse> {
+  const res = await fetch(`${API_BASE}/api/organizations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // JSON parse 失敗時は status のみのエラーメッセージを使う
+    }
+    throw new ApiError(res.status, detail);
+  }
+
+  return res.json() as Promise<OrganizationResponse>;
+}
+
+/**
+ * /api/me — 認証ユーザー情報 + 所属店舗 + オンボーディング状態を取得する（クライアント用）
+ */
+export async function fetchMe(): Promise<MeResponse> {
+  return apiFetch<MeResponse>("/api/me");
+}
+
+/**
+ * /api/organizations/me — 自分の所属店舗一覧を取得する
+ */
+export async function fetchMyOrganizations(): Promise<
+  OrganizationMembershipResponse[]
+> {
+  return apiFetch<OrganizationMembershipResponse[]>("/api/organizations/me");
 }

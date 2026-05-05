@@ -119,3 +119,49 @@ export interface FairnessDashboardData {
   staff_metrics: StaffFairnessMetrics[];
   summary: FairnessSummary;
 }
+
+// ─── Phase 1-1 オンボーディング型定義 (Planner §5.9) ───────────────────────
+
+export interface OrganizationResponse {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface OrganizationMembershipResponse {
+  organization: OrganizationResponse;
+  role: "owner" | "admin" | "member";
+  joined_at: string;
+}
+
+export interface CurrentOrganizationSummary {
+  id: string;
+  name: string;
+  slug: string;
+  role: "owner" | "admin" | "member";
+}
+
+export interface OnboardingStateResponse {
+  staff_count: number;
+  shift_slot_count: number;
+  is_complete: boolean;
+}
+
+export interface MeResponse {
+  user: {
+    id: string;
+    email: string;
+    email_verified_at: string | null;
+    name: string | null;
+    image: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+  };
+  organizations: OrganizationMembershipResponse[];
+  current_organization: CurrentOrganizationSummary | null;
+  onboarding: OnboardingStateResponse | null;
+}

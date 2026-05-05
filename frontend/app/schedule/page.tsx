@@ -16,7 +16,6 @@ import type {
   StaffingRequirement,
   StaffRequest,
 } from "@/lib/types";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,13 +31,14 @@ import { ShiftCalendar } from "@/components/shift-calendar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { FairnessDashboard } from "@/components/fairness-dashboard";
+import { OnboardingHintCard } from "@/components/onboarding/onboarding-hint-card";
 
 export default function SchedulePage() {
   // Period management state
   const [periods, setPeriods] = useState<SchedulePeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
   const [selectedPeriod, setSelectedPeriod] = useState<SchedulePeriod | null>(
-    null
+    null,
   );
 
   // New period form - default to next month
@@ -181,7 +181,7 @@ export default function SchedulePage() {
       setDiagnostics([]);
       const result = await apiFetch<OptimizeResponse>(
         `/api/schedules/${selectedPeriodId}/optimize`,
-        { method: "POST" }
+        { method: "POST" },
       );
       if (result.status === "optimal") {
         toast.success(`最適化が完了しました: ${result.message}`);
@@ -207,11 +207,11 @@ export default function SchedulePage() {
       setPublishConfirmOpen(false);
       const updated = await apiFetch<SchedulePeriod>(
         `/api/schedules/${selectedPeriodId}/publish`,
-        { method: "PUT" }
+        { method: "PUT" },
       );
       setSelectedPeriod(updated);
       setPeriods((prev) =>
-        prev.map((p) => (p.id === updated.id ? updated : p))
+        prev.map((p) => (p.id === updated.id ? updated : p)),
       );
       toast.success("シフトを公開しました");
     } catch (e) {
@@ -231,33 +231,22 @@ export default function SchedulePage() {
   const isDraft = selectedPeriod?.status === "draft";
   const hasAssignments = assignments.length > 0;
 
-  const isSetupIncomplete = !loadingPeriods && (staffList.length === 0 || shiftSlots.length === 0);
+  // OnboardingHintCard はデータ読み込み完了後（loadingPeriods=false）に表示判定する。
+  // staffList / shiftSlots はクライアント state で既に保持しているため、
+  // サーバー取得せずにそのまま props として渡す（UI 設計書 §10.1 最小変更案に従う）。
+  const isSetupIncomplete =
+    !loadingPeriods && (staffList.length === 0 || shiftSlots.length === 0);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
       <h1 className="text-2xl font-bold">シフト表</h1>
 
-      {/* Onboarding banner */}
+      {/* Onboarding hint card: データが揃っていない間のみ表示 */}
       {isSetupIncomplete && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-medium mb-1">はじめに設定が必要です</p>
-          <p className="mb-2">シフト表を作成する前に、次の順番で設定してください：</p>
-          <ol className="list-decimal list-inside space-y-1 mb-3">
-            <li className={staffList.length > 0 ? "line-through text-amber-500" : ""}>
-              スタッフを登録する
-            </li>
-            <li className={shiftSlots.length > 0 ? "line-through text-amber-500" : ""}>
-              シフト枠を登録する（例: 早番・遅番）
-            </li>
-            <li>必要人数を設定する</li>
-            <li>希望入力でスタッフの希望を収集する</li>
-          </ol>
-          <Link href="/settings">
-            <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100">
-              設定画面へ →
-            </Button>
-          </Link>
-        </div>
+        <OnboardingHintCard
+          staffCount={staffList.length}
+          shiftSlotCount={shiftSlots.length}
+        />
       )}
 
       {/* Period Management */}
@@ -325,8 +314,8 @@ export default function SchedulePage() {
                   <SelectContent>
                     {periods.map((period) => (
                       <SelectItem key={period.id} value={String(period.id)}>
-                        {period.start_date} ~ {period.end_date}{" "}
-                        ({period.status === "draft" ? "下書き" : "公開済み"})
+                        {period.start_date} ~ {period.end_date} (
+                        {period.status === "draft" ? "下書き" : "公開済み"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -348,7 +337,9 @@ export default function SchedulePage() {
                 onClick={handleOptimize}
                 disabled={!isDraft || optimizing}
               >
-                {optimizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {optimizing && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {optimizing ? "計算中..." : "最適化実行"}
               </Button>
 
@@ -386,8 +377,12 @@ export default function SchedulePage() {
                 <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-white/70 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-3 rounded-lg border bg-white px-8 py-6 shadow-md">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm font-medium">シフトを計算しています...</p>
-                    <p className="text-xs text-muted-foreground">最大 30 秒かかる場合があります</p>
+                    <p className="text-sm font-medium">
+                      シフトを計算しています...
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      最大 30 秒かかる場合があります
+                    </p>
                   </div>
                 </div>
               )}
