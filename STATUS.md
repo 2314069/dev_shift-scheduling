@@ -39,9 +39,11 @@
   - Phase 5.5 差し戻し対応:
     - **Major-1 owner 重複 race condition**: ✅ 修正完了（部分 UNIQUE インデックス追加 / Alembic `0002_add_uq_one_owner_per_user.py`、INSERT→IntegrityError catch、+3 件テスト）
     - **Major-2 `fetchMeServer` 二重呼出**: ✅ 修正完了（react の `cache()` でリクエストスコープメモ化）
+    - **Major-3 `OnboardingHintCard` 誤表示**: ✅ 修正完了（`referenceDataLoaded` フラグで apiFetch 失敗時のカード非表示ガード）
+    - **Major-4 ログアウトリンク統一**: ✅ 修正完了（`SignOutLink` クライアントコンポーネントを新規作成し、全 3 箇所で `signOut()` に統一）
     - Minor-1, Minor-2, Minor-5 も同時に対応
-    - Major-3, Major-4 / 残 Minor は将来課題に送り
-  - 最終テスト件数: backend 192 → **195** / frontend 160 → **164** すべて PASS
+    - 残 Minor (Pydantic v2 標準化、router.refresh、フィクスチャ共通化等) は将来課題に送り
+  - 最終テスト件数: backend 192 → **195** / frontend 160 → **163** すべて PASS
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
