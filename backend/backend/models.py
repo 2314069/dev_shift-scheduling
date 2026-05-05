@@ -6,10 +6,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Time,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -89,7 +91,21 @@ class OrganizationMember(Base):
         DateTime, default=_utcnow, nullable=False
     )
 
-    __table_args__ = (UniqueConstraint("user_id", "organization_id"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "organization_id"),
+        # Reviewer Major-1 対応: 同一ユーザーが owner を 2 件持つ race condition を
+        # DB レベルで防ぐ部分 UNIQUE インデックス。
+        # Phase 1-1 設計書 §3.1「スキーマ変更なし」方針に対して、
+        # テーブル定義変更なしのインデックス追加のみで対応する。
+        # SQLite 3.8+ / PostgreSQL 両対応。
+        Index(
+            "uq_one_owner_per_user",
+            "user_id",
+            unique=True,
+            sqlite_where=text("role = 'owner'"),
+            postgresql_where=text("role = 'owner'"),
+        ),
+    )
 
     user: Mapped["User"] = relationship(back_populates="members")
     organization: Mapped["Organization"] = relationship(back_populates="members")

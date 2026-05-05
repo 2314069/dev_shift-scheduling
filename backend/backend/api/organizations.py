@@ -25,21 +25,13 @@ router = APIRouter(prefix="/api/organizations", tags=["organizations"])
 _SLUG_MAX_RETRIES = 5
 
 
-def _generate_slug(db: Session) -> str:
-    """UUID v4 の hex 先頭 12 文字で slug を生成し、DB 衝突がなければ返す。
+def _generate_slug() -> str:
+    """UUID v4 の hex 先頭 12 文字で slug 候補を生成して返す。
 
-    最大 _SLUG_MAX_RETRIES 回リトライし、それでも衝突する場合は None を返す。
+    Minor-1 対応: SELECT による事前確認を省き、INSERT 時の IntegrityError で
+    ループリトライする方式に変更。呼び出し側が _SLUG_MAX_RETRIES 回リトライする。
     """
-    for _ in range(_SLUG_MAX_RETRIES):
-        candidate = uuid.uuid4().hex[:12]
-        existing = db.query(Organization).filter(Organization.slug == candidate).first()
-        if existing is None:
-            return candidate
-    # 5 回全て衝突した場合（極めて稀）
-    raise HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail="Organization slug conflict, please retry",
-    )
+    return uuid.uuid4().hex[:12]
 
 
 @router.post(
@@ -54,55 +46,72 @@ def create_organization(
 ) -> Organization:
     """新規組織を作成し、呼び出しユーザーを owner Member として登録する。
 
-    - 既に owner 組織を持つユーザーは 409
+    - 既に owner 組織を持つユーザーは 409（DB の部分 UNIQUE インデックスで保証）
     - slug は UUID v4 hex の先頭 12 文字を使い、衝突時は最大 5 回リトライ
     - Organization と OrganizationMember は同一トランザクション内で作成
+
+    Major-1 対応（race condition 修正）:
+      従来の SELECT→INSERT 方式では並行リクエスト時に両方が「owner なし」と判定して
+      同一ユーザーが複数 owner 組織を作れる可能性があった。
+      uq_one_owner_per_user（部分 UNIQUE インデックス: user_id WHERE role='owner'）を
+      Alembic マイグレーション 0002 で追加し、DB レベルで重複を阻止する。
+      IntegrityError の detail 文字列でインデックス違反か slug 衝突かを判別して
+      適切なエラーメッセージを返す。
     """
-    # フェイルファースト: 同一ユーザーが既に owner 組織を所有していないか確認
-    existing_owner_member = (
-        db.query(OrganizationMember)
-        .filter(
-            OrganizationMember.user_id == current_user.id,
-            OrganizationMember.role == "owner",
-        )
-        .first()
+    for attempt in range(_SLUG_MAX_RETRIES):
+        slug = _generate_slug()
+        org_id = str(uuid.uuid4())
+
+        try:
+            org = Organization(
+                id=org_id,
+                name=data.name,
+                slug=slug,
+            )
+            db.add(org)
+
+            member = OrganizationMember(
+                organization_id=org_id,
+                user_id=current_user.id,
+                role="owner",
+            )
+            db.add(member)
+
+            # Organization と OrganizationMember を同一トランザクションでコミット
+            db.commit()
+            db.refresh(org)
+            return org
+        except IntegrityError as exc:
+            db.rollback()
+            err_str = str(exc.orig).lower() if exc.orig else str(exc).lower()
+            # owner 重複（uq_one_owner_per_user インデックス違反）か判定
+            # - SQLite: "UNIQUE constraint failed: organization_members.user_id"
+            # - PostgreSQL: "uq_one_owner_per_user"
+            if "uq_one_owner_per_user" in err_str or (
+                "organization_members.user_id" in err_str
+                and "unique" in err_str
+                and "organization_members.user_id, organization_members.organization_id"
+                not in err_str
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="You already own an organization",
+                ) from exc
+            # slug 衝突の場合はリトライ（最終試行まで繰り返す）
+            if attempt < _SLUG_MAX_RETRIES - 1:
+                continue
+            # リトライ枯渇: 5 回連続 slug 衝突は極めて稀な内部エラー
+            # Minor-2 対応: 「please retry」ではなく 500 + 内部エラーメッセージを返す
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal slug generation failed",
+            ) from exc
+
+    # ここには到達しないが mypy のために明示する（全 attempt で return or raise するため）
+    raise HTTPException(  # pragma: no cover
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Internal slug generation failed",
     )
-    if existing_owner_member is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You already own an organization",
-        )
-
-    slug = _generate_slug(db)
-    org_id = str(uuid.uuid4())
-
-    try:
-        org = Organization(
-            id=org_id,
-            name=data.name,
-            slug=slug,
-        )
-        db.add(org)
-
-        member = OrganizationMember(
-            organization_id=org_id,
-            user_id=current_user.id,
-            role="owner",
-        )
-        db.add(member)
-
-        # Organization と OrganizationMember を同一トランザクションでコミット
-        db.commit()
-        db.refresh(org)
-    except IntegrityError:
-        db.rollback()
-        # slug が並行リクエストと衝突した場合も 409 で返す
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Organization slug conflict, please retry",
-        )
-
-    return org
 
 
 @router.get(

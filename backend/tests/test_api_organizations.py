@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError as SAIntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -306,3 +307,116 @@ def test_list_my_organizations_excludes_deleted(auth_client, db_session):
     # 論理削除された組織は含まれない
     assert len(data) == 1
     assert data[0]["organization"]["name"] == "アクティブ組織"
+
+
+# ---------------------------------------------------------------------------
+# Major-1 対応: uq_one_owner_per_user 部分 UNIQUE インデックスの動作確認
+# ---------------------------------------------------------------------------
+
+
+class TestOwnerUniqueIndexRaceConditionGuard:
+    """uq_one_owner_per_user 部分 UNIQUE インデックスが race condition を防ぐことを確認。
+
+    SELECT→INSERT 間の race を DB レベルで阻止するために追加した
+    部分 UNIQUE インデックス（user_id WHERE role='owner'）の動作を検証する。
+
+    Reviewer Major-1 差し戻し対応。
+    Phase 1-1 設計書 §3.1「スキーマ変更なし」方針に対して、
+    インデックス追加のみで対応するため Alembic マイグレーション 0002 を追加した。
+    """
+
+    def test_direct_insert_second_owner_raises_integrity_error(self, db_engine):
+        """同一ユーザーで 2 件の owner Member を直接 INSERT すると IntegrityError になること。
+
+        これが race condition の代理テスト。実際の race では 2 並行リクエストが
+        両方とも「owner なし」と判定して INSERT するが、DB の部分 UNIQUE インデックスが
+        2 件目の INSERT で IntegrityError を発生させることを確認する。
+        """
+        Session = sessionmaker(bind=db_engine)
+        session = Session()
+
+        user_id = str(uuid.uuid4())
+        user = User(id=user_id, email="race_test@example.com")
+        session.add(user)
+
+        org1 = Organization(
+            id=str(uuid.uuid4()), name="店舗A", slug=uuid.uuid4().hex[:12]
+        )
+        org2 = Organization(
+            id=str(uuid.uuid4()), name="店舗B", slug=uuid.uuid4().hex[:12]
+        )
+        session.add(org1)
+        session.add(org2)
+        session.commit()
+
+        # 1 件目の owner Member INSERT: 成功するはず
+        member1 = OrganizationMember(
+            organization_id=org1.id,
+            user_id=user_id,
+            role="owner",
+        )
+        session.add(member1)
+        session.commit()
+
+        # 2 件目の owner Member INSERT: uq_one_owner_per_user により IntegrityError
+        member2 = OrganizationMember(
+            organization_id=org2.id,
+            user_id=user_id,
+            role="owner",
+        )
+        session.add(member2)
+        with pytest.raises(SAIntegrityError):
+            session.commit()
+
+        session.rollback()
+        session.close()
+
+    def test_different_users_can_each_have_owner_role(self, db_engine):
+        """異なるユーザーはそれぞれ別組織で owner になれること（インデックスが過剰制約でないこと）。"""
+        Session = sessionmaker(bind=db_engine)
+        session = Session()
+
+        user_a_id = str(uuid.uuid4())
+        user_b_id = str(uuid.uuid4())
+        user_a = User(id=user_a_id, email="user_a@example.com")
+        user_b = User(id=user_b_id, email="user_b@example.com")
+        session.add(user_a)
+        session.add(user_b)
+
+        org_a = Organization(
+            id=str(uuid.uuid4()), name="A の店", slug=uuid.uuid4().hex[:12]
+        )
+        org_b = Organization(
+            id=str(uuid.uuid4()), name="B の店", slug=uuid.uuid4().hex[:12]
+        )
+        session.add(org_a)
+        session.add(org_b)
+        session.commit()
+
+        # 異なるユーザーがそれぞれ owner になれる
+        member_a = OrganizationMember(
+            organization_id=org_a.id, user_id=user_a_id, role="owner"
+        )
+        member_b = OrganizationMember(
+            organization_id=org_b.id, user_id=user_b_id, role="owner"
+        )
+        session.add(member_a)
+        session.add(member_b)
+        # IntegrityError が発生しないこと
+        session.commit()
+
+        session.close()
+
+    def test_api_second_create_returns_409(self, auth_client):
+        """API 経由で 2 回目の組織作成リクエストが 409 を返すこと（既存テストの補完）。
+
+        部分 UNIQUE インデックスによって SELECT なしでも 409 が正しく返ることを確認する。
+        """
+        # 1 件目: 成功
+        resp1 = auth_client.post("/api/organizations", json={"name": "最初の店"})
+        assert resp1.status_code == 201
+
+        # 2 件目: インデックス違反で 409 になること
+        resp2 = auth_client.post("/api/organizations", json={"name": "2 店目"})
+        assert resp2.status_code == 409
+        assert "already own" in resp2.json()["detail"].lower()
