@@ -409,6 +409,14 @@ User ─────────── OrganizationMember ───────�
 
 ---
 
+## 個人情報保護（ログマスキング・暗号化方針）
+
+`backend/backend/logging_config.py` の `SensitiveDataFilter` がアプリログ出力時にメールアドレス・JWE トークン・magic link token・URL クエリパラメータの個人情報をマスクします。詳細・設計判断・委託先の扱いは [個人情報保護リファレンス](privacy-considerations.md) を参照してください。
+
+DB の保管時暗号化は Railway Postgres 標準（AES-256）に依存し、アプリケーション層暗号化は当面導入しません（Phase 1-6 判断）。
+
+---
+
 ## DB マイグレーション運用（Alembic）
 
 Phase 1-7 で **Alembic** を導入し、現行手動 ALTER ベースの仕組みを置き換えた。SQLite（dev）と PostgreSQL（Railway 本番）の両方を同一フローで扱える。

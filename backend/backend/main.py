@@ -20,6 +20,11 @@ from backend.api.solver_config import router as solver_config_router
 from backend.api.staff import router as staff_router
 from backend.api.staffing_requirements import router as staffing_requirements_router
 from backend.database import apply_migrations, engine
+from backend.logging_config import configure_logging
+
+# ログマスキングを最初に適用する（個人情報保護・Phase 1-6）。
+# apply_migrations より前に呼ぶことで、マイグレーションログも保護対象にする。
+configure_logging()
 
 # Alembic ベースのマイグレーションを適用（AUTO_MIGRATE=0 で無効化可能）。
 # Base.metadata.create_all は alembic に置き換えたため呼び出さない。

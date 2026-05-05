@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-05 (Phase 1-1 / 1-8 完了) | ブランチ: claude/plan-next-tasks-saStF
+> 最終更新: 2026-05-05 (Phase 1-1 / 1-6 / 1-8 完了) | ブランチ: claude/plan-next-tasks-saStF
 
 ## 現在のフェーズ
 
@@ -73,6 +73,7 @@
 | 公平性ダッシュボードAPI | `api/fairness.py` | ✅ 完了 |
 | 組織管理 API | `api/organizations.py`, `api/me.py` | ✅ 完了 |
 | アカウント・組織削除 API | `api/me.py` (`DELETE /api/me`), `api/organizations.py` (`DELETE`) | ✅ 完了 (Phase 1-8) |
+| ログマスキング（個人情報保護） | `backend/logging_config.py` (`SensitiveDataFilter`) | ✅ 完了 (Phase 1-6) |
 
 ### フロントエンド (`frontend/`)
 
@@ -97,7 +98,7 @@
 ## テスト状況
 
 ```
-バックエンド: 212 passed (2026-05-05 時点, Phase 1-8 退会フロー +17 件含む)
+バックエンド: 228 passed (2026-05-05 時点, Phase 1-6 ログマスキング +16 件含む)
 フロントエンド: 168 passed (2026-05-05 時点, アカウント削除フォーム +5 件含む)
 E2E (Playwright): 6 specs (うち 3 件 skip, 2026-05-05 時点, onboarding.spec.ts 追加)
 ```
