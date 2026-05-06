@@ -143,6 +143,12 @@ class StaffingRequirementResponse(BaseModel):
 
 
 # --- StaffRequest ---
+class UnsubmittedStaffResponse(BaseModel):
+    staff_id: int
+    name: str
+    role: str
+
+
 class StaffRequestItem(BaseModel):
     staff_id: int
     date: date

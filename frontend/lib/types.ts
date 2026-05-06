@@ -98,6 +98,12 @@ export interface SkillRequirement {
   min_count: number;
 }
 
+export interface UnsubmittedStaff {
+  staff_id: number;
+  name: string;
+  role: string;
+}
+
 export interface StaffFairnessMetrics {
   staff_id: number;
   staff_name: string;

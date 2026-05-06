@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from backend.domain import StaffRequest
+from backend.domain import Staff, StaffRequest
 from backend.repositories import (
     ScheduleRepository,
     ShiftSlotRepository,
@@ -26,6 +26,17 @@ class RequestService:
         return self._request_repo.list_by_date_range(
             self._org_id, period.start_date, period.end_date, staff_id=staff_id
         )
+
+    def list_unsubmitted_staff(self, period_id: int) -> list[Staff]:
+        period = self._schedule_repo.get_period(self._org_id, period_id)
+        if period is None:
+            raise ValueError(f"Schedule period {period_id} not found")
+        all_staff = self._staff_repo.list_all(self._org_id)
+        submitted_requests = self._request_repo.list_by_date_range(
+            self._org_id, period.start_date, period.end_date
+        )
+        submitted_ids = {r.staff_id for r in submitted_requests}
+        return [s for s in all_staff if s.id not in submitted_ids]
 
     def bulk_create_requests(
         self, period_id: int, items: list[dict]

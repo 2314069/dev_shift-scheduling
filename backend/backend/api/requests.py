@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import get_current_org_id
 from backend.database import get_db
-from backend.schemas import StaffRequestBulkCreate, StaffRequestResponse
+from backend.schemas import StaffRequestBulkCreate, StaffRequestResponse, UnsubmittedStaffResponse
 from backend.services import RequestService
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
@@ -19,6 +19,23 @@ def list_requests(
     service = RequestService(db, org_id)
     try:
         return service.list_requests_for_period(period_id, staff_id=staff_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/unsubmitted", response_model=list[UnsubmittedStaffResponse])
+def list_unsubmitted_staff(
+    period_id: int = Query(...),
+    db: Session = Depends(get_db),
+    org_id: str = Depends(get_current_org_id),
+):
+    service = RequestService(db, org_id)
+    try:
+        staff_list = service.list_unsubmitted_staff(period_id)
+        return [
+            UnsubmittedStaffResponse(staff_id=s.id, name=s.name, role=s.role)
+            for s in staff_list
+        ]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

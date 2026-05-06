@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { getNextMonthRange, getThisMonthRange } from "@/lib/date-helpers";
@@ -15,6 +15,7 @@ import type {
   DiagnosticItem,
   StaffingRequirement,
   StaffRequest,
+  UnsubmittedStaff,
 } from "@/lib/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,9 @@ export default function SchedulePage() {
   // Diagnostics
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
 
+  // Unsubmitted staff reminder
+  const [unsubmittedStaff, setUnsubmittedStaff] = useState<UnsubmittedStaff[]>([]);
+
   // Publish confirm dialog
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
 
@@ -106,13 +110,15 @@ export default function SchedulePage() {
     if (!periodId) return;
     try {
       setLoadingSchedule(true);
-      const [scheduleData, requestsData] = await Promise.all([
+      const [scheduleData, requestsData, unsubmittedData] = await Promise.all([
         apiFetch<ScheduleResponse>(`/api/schedules/${periodId}`),
         apiFetch<StaffRequest[]>(`/api/requests?period_id=${periodId}`),
+        apiFetch<UnsubmittedStaff[]>(`/api/requests/unsubmitted?period_id=${periodId}`),
       ]);
       setSelectedPeriod(scheduleData.period);
       setAssignments(scheduleData.assignments);
       setStaffRequests(requestsData);
+      setUnsubmittedStaff(unsubmittedData);
     } catch (e) {
       console.error(e);
       toast.error("スケジュールの取得に失敗しました");
@@ -130,6 +136,7 @@ export default function SchedulePage() {
       setAssignments([]);
       setStaffRequests([]);
       setDiagnostics([]);
+      setUnsubmittedStaff([]);
     }
   }, [selectedPeriodId, fetchSchedule]);
 
@@ -369,6 +376,25 @@ export default function SchedulePage() {
 
       {/* Diagnostics Panel */}
       {diagnostics.length > 0 && <DiagnosticsPanel diagnostics={diagnostics} />}
+
+      {/* Unsubmitted Staff Reminder */}
+      {unsubmittedStaff.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <p className="text-sm font-medium text-amber-800">
+              希望未提出スタッフ（{unsubmittedStaff.length}名）
+            </p>
+          </div>
+          <ul className="space-y-1">
+            {unsubmittedStaff.map((s) => (
+              <li key={s.staff_id} className="text-sm text-amber-700">
+                {s.name}（{s.role}）
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Shift Calendar */}
       {selectedPeriod && (
