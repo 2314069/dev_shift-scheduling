@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-06 (Phase 1-2 SMTP アプリ側設定追加) | ブランチ: main
+> 最終更新: 2026-05-06 (Resend/Vercel 本番設定途中まで完了) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -50,11 +50,14 @@
   - `_run_migrations` を撤去し、`apply_migrations(engine)` が `alembic upgrade head` を起動時に実行（`AUTO_MIGRATE=0` で無効化可能）
   - Pre-Alembic な既存 DB に対しては自動的に `alembic stamp head` する救済を実装
   - 運用フローを `docs/technical-guide.md` に追記
-- **Phase 1-2 SMTP 設定: 🟡 アプリ側完了 / 本番 DNS 作業待ち**
+- **Phase 1-2 SMTP 設定: 🟡 アプリ側完了 / Resend DNS・Vercel 設定完了 / Backend デプロイ待ち**
   - Nodemailer SMTP 設定を `EMAIL_SERVER_HOST/PORT/SECURE/USER/PASSWORD` から構成するよう修正
   - Mailpit は認証なし、Resend は `smtp.resend.com:465` + `EMAIL_SERVER_USER=resend` + API key で利用可能
   - `.env.example` と `docs/technical-guide.md` に Resend / SPF / DKIM / DMARC 反映手順を追記
-  - 残作業: Resend アカウントで API key 作成、`shift-suketto.jp` の DNS レコード登録、Vercel 本番環境変数設定、本番 Magic Link smoke
+  - Resend ドメイン `shift-suketto.com` は verified 済み（DKIM / MX / SPF）。送信リージョンは Tokyo (`ap-northeast-1`)
+  - Vercel プロジェクト `dev-shift-scheduling` 作成済み。Root Directory は `frontend`
+  - Vercel 本番環境変数は SMTP / `AUTH_SECRET` / `INTERNAL_AUTH_SECRET` / `NEXTAUTH_URL=https://dev-shift-scheduling.vercel.app` まで設定済み
+  - 残作業: Railway に backend + PostgreSQL を作成し、backend URL を Vercel の `BACKEND_INTERNAL_URL` / `NEXT_PUBLIC_API_URL` に設定して再デプロイ。本番 Magic Link smoke はその後に実施
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md` / `docs/technical-guide.md` (Alembic 運用)
 
 ## 実装済み機能
@@ -125,11 +128,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
+| `941d06e` | feat(auth): support production SMTP settings |
+| `d3b6852` | fix: make e2e and alembic config work on Windows |
+| `206db17` | merge: integrate onboarding branch into main |
 | `55e0b8e` | test(onboarding): add tenant isolation tests, e2e spec, tester report |
 | `472beaf` | test(onboarding): add Phase 1-1 integration flow tests (15 cases) |
-| `3c715a9` | feat(onboarding): implement Phase 1-1 organization onboarding flow |
-| `5b81dc4` | docs(plans): add Phase 1-1 onboarding UI/UX design |
-| `8901423` | docs(plans): add Phase 1-1 onboarding technical design |
 
 ## TODO / フェーズ2 候補
 
