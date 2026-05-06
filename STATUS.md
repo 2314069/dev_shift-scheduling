@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-06 (Phase 1-1 / 1-6 / 1-8 / 2-2 + 希望未提出スタッフ催促リマインダー 統合) | ブランチ: main
+> 最終更新: 2026-05-06 (Phase 1-2 SMTP アプリ側設定追加) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -50,6 +50,11 @@
   - `_run_migrations` を撤去し、`apply_migrations(engine)` が `alembic upgrade head` を起動時に実行（`AUTO_MIGRATE=0` で無効化可能）
   - Pre-Alembic な既存 DB に対しては自動的に `alembic stamp head` する救済を実装
   - 運用フローを `docs/technical-guide.md` に追記
+- **Phase 1-2 SMTP 設定: 🟡 アプリ側完了 / 本番 DNS 作業待ち**
+  - Nodemailer SMTP 設定を `EMAIL_SERVER_HOST/PORT/SECURE/USER/PASSWORD` から構成するよう修正
+  - Mailpit は認証なし、Resend は `smtp.resend.com:465` + `EMAIL_SERVER_USER=resend` + API key で利用可能
+  - `.env.example` と `docs/technical-guide.md` に Resend / SPF / DKIM / DMARC 反映手順を追記
+  - 残作業: Resend アカウントで API key 作成、`shift-suketto.jp` の DNS レコード登録、Vercel 本番環境変数設定、本番 Magic Link smoke
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md` / `docs/technical-guide.md` (Alembic 運用)
 
 ## 実装済み機能

@@ -14,22 +14,14 @@ import NextAuth from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
 import { createAuthAdapter } from "@/lib/auth-adapter";
 import { authConfig } from "@/auth.config";
+import { buildEmailServerConfig } from "@/lib/email-server-config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   adapter: createAuthAdapter(),
   providers: [
     Nodemailer({
-      server: {
-        host: process.env.EMAIL_SERVER_HOST ?? "localhost",
-        port: Number(process.env.EMAIL_SERVER_PORT ?? "1025"),
-        auth: {
-          // Mailpit はパスワード認証を要求しないため空文字にする
-          user: "",
-          pass: "",
-        },
-        secure: false,
-      },
+      server: buildEmailServerConfig(),
       from: process.env.EMAIL_FROM ?? "noreply@shift-suketto.local",
     }),
   ],

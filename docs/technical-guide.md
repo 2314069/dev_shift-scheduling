@@ -417,6 +417,49 @@ DB の保管時暗号化は Railway Postgres 標準（AES-256）に依存し、�
 
 ---
 
+## Magic Link メール送信（SMTP / Resend）
+
+Auth.js の Nodemailer provider は `frontend/lib/email-server-config.ts` で組み立てた SMTP 設定を使います。
+
+### 開発環境（Mailpit）
+
+```bash
+docker compose up -d mailpit
+```
+
+```env
+EMAIL_SERVER_HOST=localhost
+EMAIL_SERVER_PORT=1025
+EMAIL_SERVER_SECURE=false
+EMAIL_FROM=noreply@shift-suketto.local
+```
+
+### 本番環境（Resend SMTP）
+
+Resend で `shift-suketto.jp` をドメイン認証し、SPF / DKIM / DMARC の DNS レコードが有効になってから Vercel に以下を設定します。
+
+```env
+EMAIL_SERVER_HOST=smtp.resend.com
+EMAIL_SERVER_PORT=465
+EMAIL_SERVER_SECURE=true
+EMAIL_SERVER_USER=resend
+EMAIL_SERVER_PASSWORD=re_xxxxxxxxx
+EMAIL_FROM=シフトすけっと <noreply@shift-suketto.jp>
+```
+
+Resend SMTP の公式値は host `smtp.resend.com`、username `resend`、password は API key です。Nodemailer では port `465` の場合 `secure=true` を使います。port `587` を使う場合は STARTTLS のため `EMAIL_SERVER_SECURE=false` にします。
+
+### 本番反映チェック
+
+1. Resend で API key を作成する。
+2. Resend の Domains で `shift-suketto.jp` を追加し、提示された DNS レコードをドメイン管理画面に登録する。
+3. Resend 上で domain status が verified になったことを確認する。
+4. Vercel に `EMAIL_SERVER_*`, `EMAIL_FROM`, `AUTH_SECRET`, `INTERNAL_AUTH_SECRET`, `NEXTAUTH_URL`, `BACKEND_INTERNAL_URL` を設定する。
+5. 本番 URL の `/signin` から自分のメールアドレス宛に Magic Link を送信し、メール到達とログイン完了を確認する。
+6. Resend ダッシュボードで delivery / bounce / spam 関連の指標を確認する。
+
+---
+
 ## DB マイグレーション運用（Alembic）
 
 Phase 1-7 で **Alembic** を導入し、現行手動 ALTER ベースの仕組みを置き換えた。SQLite（dev）と PostgreSQL（Railway 本番）の両方を同一フローで扱える。
