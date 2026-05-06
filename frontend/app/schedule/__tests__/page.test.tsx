@@ -22,6 +22,22 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// OnboardingHintCard は Worker B 担当のコンポーネント。
+// 並列実装のため未作成の場合があるのでモックしてテストを通す。
+vi.mock("@/components/onboarding/onboarding-hint-card", () => ({
+  OnboardingHintCard: ({
+    staffCount,
+    shiftSlotCount,
+  }: {
+    staffCount: number;
+    shiftSlotCount: number;
+  }) => (
+    <div data-testid="onboarding-hint-card">
+      onboarding-hint staff={staffCount} slots={shiftSlotCount}
+    </div>
+  ),
+}));
+
 beforeEach(() => {
   mockApiFetch.mockReset();
   // FairnessDashboard は period 選択時に呼ばれるため、never-resolve で待機させる
@@ -34,20 +50,24 @@ function setupDefaultMocks({
   staff = [] as ReturnType<typeof makeStaff>[],
   slots = [] as ReturnType<typeof makeShiftSlot>[],
 } = {}) {
-  mockApiFetch.mockResolvedValueOnce(staff);    // /api/staff
-  mockApiFetch.mockResolvedValueOnce(slots);    // /api/shift-slots
-  mockApiFetch.mockResolvedValueOnce([]);       // /api/staffing-requirements
-  mockApiFetch.mockResolvedValueOnce(periods);  // /api/schedules
+  mockApiFetch.mockResolvedValueOnce(staff); // /api/staff
+  mockApiFetch.mockResolvedValueOnce(slots); // /api/shift-slots
+  mockApiFetch.mockResolvedValueOnce([]); // /api/staffing-requirements
+  mockApiFetch.mockResolvedValueOnce(periods); // /api/schedules
 }
 
 const user = userEvent.setup({ pointerEventsCheck: 0 });
 
 // Helper: creates a period via the "create" button, which auto-selects it
-async function createAndSelectPeriod(period: ReturnType<typeof makeSchedulePeriod>, assignments: ReturnType<typeof makeAssignment>[] = []) {
-  mockApiFetch.mockResolvedValueOnce(period);              // POST /api/schedules
-  mockApiFetch.mockResolvedValueOnce([period]);             // re-fetch periods
+async function createAndSelectPeriod(
+  period: ReturnType<typeof makeSchedulePeriod>,
+  assignments: ReturnType<typeof makeAssignment>[] = [],
+) {
+  mockApiFetch.mockResolvedValueOnce(period); // POST /api/schedules
+  mockApiFetch.mockResolvedValueOnce([period]); // re-fetch periods
   mockApiFetch.mockResolvedValueOnce({ period, assignments }); // fetchSchedule
-  mockApiFetch.mockResolvedValueOnce([]);                  // /api/requests?period_id=X
+  mockApiFetch.mockResolvedValueOnce([]); // /api/requests?period_id=X
+  mockApiFetch.mockResolvedValueOnce([]); // /api/requests/unsubmitted?period_id=X
 
   await user.click(screen.getByText("期間を作成"));
 
@@ -59,7 +79,12 @@ async function createAndSelectPeriod(period: ReturnType<typeof makeSchedulePerio
 describe("SchedulePage", () => {
   it("loads and displays period list", async () => {
     const periods = [
-      makeSchedulePeriod({ id: 1, start_date: "2026-03-01", end_date: "2026-03-31", status: "draft" }),
+      makeSchedulePeriod({
+        id: 1,
+        start_date: "2026-03-01",
+        end_date: "2026-03-31",
+        status: "draft",
+      }),
     ];
     setupDefaultMocks({ periods });
 
@@ -79,18 +104,23 @@ describe("SchedulePage", () => {
       expect(screen.getByText("期間を作成")).toBeInTheDocument();
     });
 
-    const created = makeSchedulePeriod({ id: 1, start_date: "2026-03-01", end_date: "2026-03-31" });
-    mockApiFetch.mockResolvedValueOnce(created);                        // POST /api/schedules
-    mockApiFetch.mockResolvedValueOnce([created]);                       // re-fetch periods
+    const created = makeSchedulePeriod({
+      id: 1,
+      start_date: "2026-03-01",
+      end_date: "2026-03-31",
+    });
+    mockApiFetch.mockResolvedValueOnce(created); // POST /api/schedules
+    mockApiFetch.mockResolvedValueOnce([created]); // re-fetch periods
     mockApiFetch.mockResolvedValueOnce({ period: created, assignments: [] }); // fetchSchedule
-    mockApiFetch.mockResolvedValueOnce([]);                             // /api/requests?period_id=X
+    mockApiFetch.mockResolvedValueOnce([]); // /api/requests?period_id=X
+    mockApiFetch.mockResolvedValueOnce([]); // /api/requests/unsubmitted?period_id=X
 
     await user.click(screen.getByText("期間を作成"));
 
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/schedules",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
@@ -111,7 +141,11 @@ describe("SchedulePage", () => {
     await createAndSelectPeriod(period);
 
     // Run optimization
-    const assignment = makeAssignment({ period_id: 1, staff_id: 1, shift_slot_id: 1 });
+    const assignment = makeAssignment({
+      period_id: 1,
+      staff_id: 1,
+      shift_slot_id: 1,
+    });
     mockApiFetch.mockResolvedValueOnce({
       status: "optimal",
       message: "最適解が見つかりました",
@@ -124,7 +158,7 @@ describe("SchedulePage", () => {
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/schedules/1/optimize",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
@@ -186,7 +220,7 @@ describe("SchedulePage", () => {
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/schedules/1/publish",
-        expect.objectContaining({ method: "PUT" })
+        expect.objectContaining({ method: "PUT" }),
       );
     });
   });

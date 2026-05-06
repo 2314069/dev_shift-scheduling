@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # ---- 認証・組織関連スキーマ（Phase 0-1 追加） ----
 # サブタスク 2（内部認証 API）で拡張される最小限のスキーマ
@@ -34,6 +34,21 @@ class OrganizationCreate(BaseModel):
     slug: str
 
 
+# Phase 1-1: 公開 API 用の組織作成リクエスト（slug はサーバーで自動生成するため受け付けない）
+class OrganizationCreateRequest(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("name must not be empty")
+        if len(stripped) > 100:
+            raise ValueError("name must be 100 characters or less")
+        return stripped
+
+
 class OrganizationResponse(BaseModel):
     id: str
     name: str
@@ -59,6 +74,44 @@ class OrganizationMemberResponse(BaseModel):
     joined_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# Phase 1-1: 所属組織一覧レスポンス（organization 詳細 + role + joined_at）
+class OrganizationMembershipResponse(BaseModel):
+    organization: OrganizationResponse
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# Phase 1-1: /api/me 用スキーマ群
+
+
+class CurrentOrganizationSummary(BaseModel):
+    """現在の組織サマリ（ナビ表示・ルーティング判定用）。"""
+
+    id: str
+    name: str
+    slug: str
+    role: str  # 自分のロール
+
+
+class OnboardingStateResponse(BaseModel):
+    """初期データガイド表示判定用カウント。current_organization が None のときは null を返す。"""
+
+    staff_count: int
+    shift_slot_count: int
+    is_complete: bool  # staff_count > 0 AND shift_slot_count > 0
+
+
+class MeResponse(BaseModel):
+    """GET /api/me の統合レスポンス。ナビゲーション・ルーティング判定に必要な情報を 1 リクエストで返す。"""
+
+    user: UserResponse
+    organizations: list[OrganizationMembershipResponse]
+    current_organization: CurrentOrganizationSummary | None
+    onboarding: OnboardingStateResponse | None
 
 
 class VerificationTokenCreate(BaseModel):

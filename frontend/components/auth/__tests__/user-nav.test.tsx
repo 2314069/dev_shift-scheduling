@@ -74,6 +74,57 @@ describe("UserNav", () => {
     expect(await screen.findByText("owner@example.com")).toBeInTheDocument();
   });
 
+  it("orgName が渡された場合にドロップダウンに店舗名が表示される", async () => {
+    const user = userEvent.setup();
+    mockUseSession.mockReturnValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "owner@example.com",
+          name: null,
+        },
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<UserNav orgName="渋谷カフェ 本店" />);
+
+    await user.click(
+      screen.getByRole("button", { name: "ユーザーメニューを開く" }),
+    );
+
+    expect(await screen.findByText("渋谷カフェ 本店")).toBeInTheDocument();
+  });
+
+  it("orgName が undefined の場合は店舗名が表示されない", async () => {
+    const user = userEvent.setup();
+    mockUseSession.mockReturnValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "owner@example.com",
+          name: null,
+        },
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<UserNav />);
+
+    await user.click(
+      screen.getByRole("button", { name: "ユーザーメニューを開く" }),
+    );
+
+    // メールアドレスは表示される
+    expect(await screen.findByText("owner@example.com")).toBeInTheDocument();
+    // 店舗名は表示されない
+    expect(screen.queryByText("渋谷カフェ 本店")).not.toBeInTheDocument();
+  });
+
   it("ログアウトボタンクリックで signOut が呼ばれる", async () => {
     const user = userEvent.setup();
     // signOut はオーバーロードを持つため any キャストで型エラーを回避する

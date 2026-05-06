@@ -1,8 +1,28 @@
+/**
+ * ルートレイアウト
+ *
+ * サーバーコンポーネントとして動作し、/api/me の結果に基づいてナビゲーションを制御する。
+ *
+ * 3 状態の対応:
+ *   A. 未ログイン       → ヘッダー非表示（session === null）
+ *   B. ログイン済み・店舗未所属 → ヘッダー表示（ロゴ + UserNav のみ）。ナビリンク非表示
+ *   C. ログイン済み・店舗所属あり → ヘッダー表示（ロゴ + MainNav + UserNav）
+ *
+ * SessionProvider は Client Component のため、children として配置する。
+ * fetchMeServer のエラー（バックエンドダウン等）は catch(() => null) で吸収し
+ * レイアウトがクラッシュしないようにする。
+ *
+ * @see docs/plans/2026-05-05-phase1-1-onboarding-design.md §5.5
+ * @see docs/plans/2026-05-05-phase1-1-onboarding-ui-design.md §4.4, §6.2
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { auth } from "@/auth";
+import { fetchMeServer } from "@/lib/api-server";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { UserNav } from "@/components/auth/user-nav";
+import { MainNav } from "@/components/main-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -18,57 +38,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "シフトスケジューラー",
-  description: "シフト管理アプリケーション",
+  title: "シフトすけっと",
+  description: "シフトすけっと | 小規模店舗のシフト管理",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
+  // fetchMeServer のエラー（バックエンドダウン等）はキャッチして null 扱いにする。
+  // レイアウト自体はクラッシュさせず、各ページの error.tsx に委ねる。
+  const me = session ? await fetchMeServer().catch(() => null) : null;
+  const hasOrg = (me?.organizations.length ?? 0) > 0;
+
   return (
-    <html lang="en">
+    <html lang="ja">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-          <header className="border-b bg-white">
-            <div className="container mx-auto flex h-14 items-center justify-between px-4">
-              <Link href="/schedule" className="text-lg font-bold">
-                シフトスケジューラー
-              </Link>
-              <div className="flex items-center gap-6">
-                <nav className="flex gap-6">
-                  <Link
-                    href="/settings"
-                    className="text-sm font-medium hover:text-primary"
-                  >
-                    設定
-                  </Link>
-                  <Link
-                    href="/staff"
-                    className="text-sm font-medium hover:text-primary"
-                  >
-                    希望入力
-                  </Link>
-                  <Link
-                    href="/view"
-                    className="text-sm font-medium hover:text-primary"
-                  >
-                    シフト確認
-                  </Link>
-                  <Link
-                    href="/schedule"
-                    className="text-sm font-medium hover:text-primary"
-                  >
-                    シフト表
-                  </Link>
-                </nav>
-                <UserNav />
+          {session && (
+            <header className="border-b bg-white">
+              <div className="container mx-auto flex h-14 items-center justify-between px-4">
+                <Link href="/" className="text-lg font-bold">
+                  シフトすけっと
+                </Link>
+                <div className="flex items-center gap-6">
+                  {hasOrg && <MainNav />}
+                  <UserNav orgName={me?.current_organization?.name} />
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
+          )}
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
         </SessionProvider>

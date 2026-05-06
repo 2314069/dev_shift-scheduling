@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import models  # noqa: F401
 from backend.api.fairness import router as fairness_router
 from backend.api.internal_auth import router as internal_auth_router
+from backend.api.me import router as me_router
+from backend.api.organizations import router as organizations_router
 from backend.api.requests import router as requests_router
 from backend.api.role_staffing_requirements import (
     router as role_staffing_requirements_router,
@@ -18,6 +20,11 @@ from backend.api.solver_config import router as solver_config_router
 from backend.api.staff import router as staff_router
 from backend.api.staffing_requirements import router as staffing_requirements_router
 from backend.database import apply_migrations, engine
+from backend.logging_config import configure_logging
+
+# ログマスキングを最初に適用する（個人情報保護・Phase 1-6）。
+# apply_migrations より前に呼ぶことで、マイグレーションログも保護対象にする。
+configure_logging()
 
 # Alembic ベースのマイグレーションを適用（AUTO_MIGRATE=0 で無効化可能）。
 # Base.metadata.create_all は alembic に置き換えたため呼び出さない。
@@ -48,6 +55,8 @@ app.include_router(skills_router)
 app.include_router(skill_requirements_router)
 app.include_router(fairness_router)
 app.include_router(internal_auth_router)
+app.include_router(organizations_router)
+app.include_router(me_router)
 
 
 @app.get("/api/health")

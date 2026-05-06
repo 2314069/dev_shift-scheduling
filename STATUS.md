@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-06 (希望未提出スタッフ催促リマインダー 実装完了) | ブランチ: main
+> 最終更新: 2026-05-06 (Phase 1-1 / 1-6 / 1-8 / 2-2 + 希望未提出スタッフ催促リマインダー 統合) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -20,8 +20,30 @@
   - **[#m5] テナント分離テスト拡張**: ✅ 完了（DELETE / FK 越境 / period 越境 / 未所属 403 など 13 件追加、計 15 件）
   - **[#m6] frontend middleware の fail-close 化**: ✅ 完了（NODE_ENV ホワイトリスト方式）
   - **[#m7] マイグレーションのトランザクション統合**: ✅ 完了（`engine.begin()` で単一トランザクション）
-  - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: 🔜 Phase 1-1（オンボーディング）に合流予定
+  - **ブロッカー [#M3] 新規ユーザーの組織自動付与**: ✅ 解消済み（Phase 1-1 明示オンボーディングで対応）
   - 残 Minor（m2: 複数組織所属時の選択ロジック、m4: verification_tokens クリーンアップ）は将来対応
+- **Phase 1-1 オンボーディング: ✅ 完了**（M3 ブロッカー解消、新規ユーザーの組織作成フロー）
+  - Orchestrator によるタスク分解完了: `docs/plans/2026-05-05-phase1-1-onboarding-decomposition.md`
+  - Planner による技術設計完了: `docs/plans/2026-05-05-phase1-1-onboarding-design.md`（10 項目の意思決定 + API/フロー/Worker 分割）
+  - Designer による UI/UX 設計完了: `docs/plans/2026-05-05-phase1-1-onboarding-ui-design.md`（「店舗」表記統一、Card 縦スタックチェックリスト、ghost ボタン採用等）
+  - Phase 2.5 設計レビュー: ✅ ユーザー承認済
+  - Phase 3 実装完了:
+    - Worker A (BE): `api/organizations.py`, `api/me.py` 新規 + ルーター登録 / schemas 追加。バックエンド 126 → 166 tests (+40)
+    - Worker B (FE オンボ画面): `(onboarding)/` ルートグループ、`CreateOrgForm` / `GettingStartedChecklist` / `OnboardingHintCard` + ページ
+    - Worker C (FE middleware/ナビ/ルート): `app/page.tsx` サーバー化 + 3 状態分岐、`MainNav` 抽出、`schedule` ページに `OnboardingHintCard` 埋め込み
+    - フロントエンド 75 → 160 tests (+85)、全 PASS
+    - 表記統一「店舗」、slug は `uuid.uuid4().hex[:12]` 自動生成、JWT 拡張なし、スキーマ変更なし
+  - Phase 4 テスト完了: backend 192 / frontend 160 / E2E 6 (3 skip)
+  - テスターレポート: `docs/reviews/2026-05-05-phase1-1-tester-report.md`
+  - Phase 5 レビュー: `docs/reviews/2026-05-05-phase1-1-code-review.md`（Conditional Pass / Critical 0 / Major 4 / Minor 8）
+  - Phase 5.5 差し戻し対応:
+    - **Major-1 owner 重複 race condition**: ✅ 修正完了（部分 UNIQUE インデックス追加 / Alembic `0002_add_uq_one_owner_per_user.py`、INSERT→IntegrityError catch、+3 件テスト）
+    - **Major-2 `fetchMeServer` 二重呼出**: ✅ 修正完了（react の `cache()` でリクエストスコープメモ化）
+    - **Major-3 `OnboardingHintCard` 誤表示**: ✅ 修正完了（`referenceDataLoaded` フラグで apiFetch 失敗時のカード非表示ガード）
+    - **Major-4 ログアウトリンク統一**: ✅ 修正完了（`SignOutLink` クライアントコンポーネントを新規作成し、全 3 箇所で `signOut()` に統一）
+    - Minor-1, Minor-2, Minor-5 も同時に対応
+    - 残 Minor (Pydantic v2 標準化、router.refresh、フィクスチャ共通化等) は将来課題に送り
+  - 最終テスト件数: backend 192 → **195** / frontend 160 → **163** すべて PASS
 - **Phase 1-7 Alembic 導入: ✅ 完了**（Railway PostgreSQL 用マイグレーション体制）
   - `backend/alembic/` ディレクトリ + 初期マイグレーション `0001_initial_schema.py`
   - `DATABASE_URL` 環境変数で SQLite (dev) / PostgreSQL (prod) 両対応、SQLite では `render_as_batch=True` で ALTER TABLE 互換
@@ -49,6 +71,9 @@
 | 逆循環シフト禁止制約 | `optimizer/solver.py`, `models.py`, `domain.py` | ✅ 完了 |
 | スキル・資格配置制約 | `optimizer/solver.py`, `api/skills.py`, `api/skill_requirements.py`, `repositories/skill.py` | ✅ 完了 |
 | 公平性ダッシュボードAPI | `api/fairness.py` | ✅ 完了 |
+| 組織管理 API | `api/organizations.py`, `api/me.py` | ✅ 完了 |
+| アカウント・組織削除 API | `api/me.py` (`DELETE /api/me`), `api/organizations.py` (`DELETE`) | ✅ 完了 (Phase 1-8) |
+| ログマスキング（個人情報保護） | `backend/logging_config.py` (`SensitiveDataFilter`) | ✅ 完了 (Phase 1-6) |
 
 ### フロントエンド (`frontend/`)
 
@@ -68,14 +93,16 @@
 | 公平性ダッシュボード画面 | `components/fairness-dashboard.tsx`, `app/schedule/page.tsx` | ✅ 完了 |
 | 業種別プリセット制約テンプレート | `components/solver-config-panel.tsx` | ✅ 完了 |
 | 希望未提出スタッフ一覧（催促リマインダー） | `app/schedule/page.tsx` | ✅ 完了 |
+| オンボーディング画面 | `app/(onboarding)/` | ✅ 完了 |
+| アカウント削除画面 | `app/account/delete/page.tsx`, `components/account/delete-account-form.tsx` | ✅ 完了 (Phase 1-8) |
 
 ## テスト状況
 
 ```
-バックエンド: 126 passed (2026-05-03 時点, M2/M4 検証 + テナント分離テスト 13件追加)
-  ※ 未提出スタッフリマインダー実装後の再確認が必要（2026-05-06 時点）
-フロントエンド: 75 passed (2026-05-02 時点, sign-in-form / user-nav テスト 9件追加)
-E2E (Playwright): 3 passed (2026-05-03 時点, バイパスが組織メンバーシップを自動付与するよう拡張)
+バックエンド: 228 passed (2026-05-05 時点, Phase 1-6 ログマスキング +16 件含む)
+フロントエンド: 168 passed (2026-05-05 時点, アカウント削除フォーム +5 件含む)
+E2E (Playwright): 6 specs (うち 3 件 skip, 2026-05-05 時点, onboarding.spec.ts 追加)
+※ main の希望未提出スタッフリマインダー統合後の再確認が必要（2026-05-06 時点）
 ```
 
 テスト実行コマンド:
@@ -93,11 +120,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| (最新) | feat: implement organization_id multi-tenant isolation (Phase 0-2) |
-| `da062cc` | feat(auth): add E2E auth bypass and complete Phase 0-1 authentication |
-| `06d00b5` | feat(auth): add middleware, SessionProvider, UserNav, 401 redirect |
-| `b6e7024` | feat(auth): apply get_current_user dependency to all 32 endpoints |
-| `c4da8bc` | feat(auth): set up Auth.js v5 with custom HTTP adapter and Mailpit |
+| `55e0b8e` | test(onboarding): add tenant isolation tests, e2e spec, tester report |
+| `472beaf` | test(onboarding): add Phase 1-1 integration flow tests (15 cases) |
+| `3c715a9` | feat(onboarding): implement Phase 1-1 organization onboarding flow |
+| `5b81dc4` | docs(plans): add Phase 1-1 onboarding UI/UX design |
+| `8901423` | docs(plans): add Phase 1-1 onboarding technical design |
 
 ## TODO / フェーズ2 候補
 
@@ -122,6 +149,7 @@ E2E 実行の前提:
 - [x] 希望インジケーター・勤務日数合計列（シフトカレンダー拡張）
 - [x] 公開済みシフト表のスタッフ向け閲覧画面（/view ページ・行ハイライト）
 - [x] 月またぎ連続勤務制約（直前公開済み期間の末尾実績を LP ソルバーに注入）
+- [x] Phase 1-1 オンボーディング（新規ユーザーの組織作成フロー、M3 ブロッカー解消）（2026-05-05）
 
 ## 既知の問題・メモ
 

@@ -380,6 +380,43 @@ dev-shift-scheduling/
 
 ---
 
+## 組織モデルと所属判定
+
+### モデルの関係
+
+`Organization`（店舗）と `User` は多対多の関係で、`OrganizationMember` が中間テーブルとして両者を紐付けます。
+
+```
+User ─────────── OrganizationMember ─────────── Organization
+                     role: owner / admin / member
+```
+
+### 所属判定の真実の源
+
+**組織所属の判定は DB の `OrganizationMember` テーブルを唯一の真実とします**（JWT クレームには組織情報を含めません）。
+
+- `GET /api/me` が返す `current_organization` は、`OrganizationMember` を `Organization.deleted_at IS NULL` で JOIN した最初の 1 件です。
+- 組織未所属ユーザーは業務 API（スタッフ・シフト枠など）を叩いた場合に 403 が返ります。フロントエンドは `/onboarding` への誘導でこれを事前に防ぎます。
+
+### 表記の対応
+
+コードや API では `organization` / `organization_id` を使い、UI 上のユーザー向け文言は「店舗」で統一しています。
+
+| 層 | 表記 |
+|----|------|
+| DB テーブル / API フィールド | `organization`, `organization_id` |
+| UI（ユーザー向け） | 「店舗」 |
+
+---
+
+## 個人情報保護（ログマスキング・暗号化方針）
+
+`backend/backend/logging_config.py` の `SensitiveDataFilter` がアプリログ出力時にメールアドレス・JWE トークン・magic link token・URL クエリパラメータの個人情報をマスクします。詳細・設計判断・委託先の扱いは [個人情報保護リファレンス](privacy-considerations.md) を参照してください。
+
+DB の保管時暗号化は Railway Postgres 標準（AES-256）に依存し、アプリケーション層暗号化は当面導入しません（Phase 1-6 判断）。
+
+---
+
 ## DB マイグレーション運用（Alembic）
 
 Phase 1-7 で **Alembic** を導入し、現行手動 ALTER ベースの仕組みを置き換えた。SQLite（dev）と PostgreSQL（Railway 本番）の両方を同一フローで扱える。
