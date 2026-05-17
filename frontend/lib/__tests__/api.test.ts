@@ -19,10 +19,10 @@ describe("apiFetch", () => {
     await apiFetch("/api/staff");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/staff",
+      "/api/staff",
       expect.objectContaining({
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
   });
 
@@ -70,11 +70,11 @@ describe("apiFetch", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/staff",
+      "/api/staff",
       expect.objectContaining({
         method: "POST",
         body: '{"name":"新規"}',
-      })
+      }),
     );
   });
 });

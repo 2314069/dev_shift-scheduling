@@ -5,7 +5,14 @@ import type {
   OrganizationResponse,
 } from "@/lib/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// ブラウザでは相対パス ("/api/...") を使い、Next.js の rewrites 経由で Railway に届ける。
+// これにより `__Secure-authjs.session-token` Cookie が same-origin として送信され、
+// クロスサイト fetch で SameSite=Lax の Cookie が落ちる問題を回避する。
+// SSR から呼ばれる場合は環境変数のフル URL を使う（cookie は Cookie ヘッダで明示転送）。
+const API_BASE =
+  typeof window !== "undefined"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 /**
  * API エラークラス
