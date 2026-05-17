@@ -60,6 +60,7 @@
   - 残作業: Railway に backend + PostgreSQL を作成し、backend URL を Vercel の `BACKEND_INTERNAL_URL` / `NEXT_PUBLIC_API_URL` に設定して再デプロイ。本番 Magic Link smoke はその後に実施
   - 2026-05-17: Railway プロジェクト作成 + GitHub 連携完了。Railpack による誤検出を防ぐため `backend/railway.json` を追加し Dockerfile builder を明示
   - 2026-05-17: Dockerfile ビルド成功。`startCommand` で `$PORT` が展開されない問題を `sh -c` ラップで修正（Railway は exec 実行のため）
+  - 2026-05-17: uvicorn 起動成功。Alembic が `alembic.ini` を見つけられないエラーを修正（Dockerfile に `COPY alembic.ini .` と `COPY alembic/ alembic/` を追加）
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md` / `docs/technical-guide.md` (Alembic 運用)
 
 ## 実装済み機能

@@ -9,6 +9,8 @@ COPY pyproject.toml .
 RUN uv pip install --system .
 
 COPY backend/ backend/
+COPY alembic.ini .
+COPY alembic/ alembic/
 
 EXPOSE 8000
 
