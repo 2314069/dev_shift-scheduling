@@ -232,21 +232,27 @@ def create_verification_token(
 
 @router.post(
     "/verification-tokens/use",
-    response_model=UserResponse,
+    response_model=VerificationTokenResponse,
     dependencies=[Depends(verify_internal_secret)],
 )
 def use_verification_token(
     data: VerificationTokenUseRequest,
     db: Session = Depends(get_db),
-) -> User:
-    """Magic Link トークンを消費し、対応するユーザーを返す。
+) -> VerificationTokenResponse:
+    """Magic Link トークンを消費し、消費したトークン情報を返す。
 
-    Auth.js Email Provider のコールバックで呼ばれる。処理フロー:
+    Auth.js Email Provider の `useVerificationToken` Adapter コールバックは
+    VerificationToken（identifier / token / expires）を返すことを期待する。
+    User を返すと Auth.js 側で expires が Invalid Date になり「期限切れ」と
+    誤判定されるため、必ず VerificationToken 形式で返す。
+
+    処理フロー（すべて同一トランザクション内で実行し、失敗時はロールバック）:
     1. identifier + token でトークンを検索
     2. 期限切れチェック
     3. トークンを削除（使い捨て）
     4. ユーザーを upsert（新規なら作成、既存なら email_verified_at を更新）
-    すべて同一トランザクション内で実行し、失敗時はロールバックする。
+       後続の getUserByEmail で確実にユーザーが見つかるよう atomically に行う
+    5. 削除したトークン情報を返す（identifier / token / expires）
     """
     vtoken = db.get(
         VerificationToken,
@@ -268,17 +274,23 @@ def use_verification_token(
             detail="Verification token has expired",
         )
 
+    # 削除前にレスポンス用のスナップショットを取る
+    response = VerificationTokenResponse(
+        identifier=vtoken.identifier,
+        token=vtoken.token,
+        expires=vtoken.expires,
+    )
+
     # トークンを削除（使い捨て）
     db.delete(vtoken)
 
-    # ユーザーを upsert
+    # ユーザーを upsert（後続の getUserByEmail で確実にヒットさせるため atomically に）
     user = (
         db.query(User)
         .filter(User.email == data.identifier, User.deleted_at.is_(None))
         .first()
     )
     if user is None:
-        # 新規ユーザー作成
         user = User(
             id=str(uuid.uuid4()),
             email=data.identifier,
@@ -288,10 +300,8 @@ def use_verification_token(
         )
         db.add(user)
     else:
-        # 既存ユーザーの email_verified_at を更新
         user.email_verified_at = now
         user.updated_at = now
 
     db.commit()
-    db.refresh(user)
-    return user
+    return response

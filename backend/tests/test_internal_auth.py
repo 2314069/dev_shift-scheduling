@@ -198,8 +198,10 @@ def test_use_token_creates_new_user_when_not_exists(client, db_session):
     )
     assert res.status_code == 200
     body = res.json()
-    assert body["email"] == "newuser@example.com"
-    assert body["email_verified_at"] is not None
+    # Auth.js Adapter は VerificationToken (identifier / token / expires) を期待する
+    assert body["identifier"] == "newuser@example.com"
+    assert body["token"] == "tok1"
+    assert body["expires"] is not None
 
     # トークンが消費されていることを確認
     remaining = db_session.get(
@@ -207,6 +209,11 @@ def test_use_token_creates_new_user_when_not_exists(client, db_session):
         {"identifier": "newuser@example.com", "token": "tok1"},
     )
     assert remaining is None
+
+    # ユーザーが作成され、email_verified_at がセットされていることを DB で確認
+    created = db_session.query(User).filter(User.email == "newuser@example.com").first()
+    assert created is not None
+    assert created.email_verified_at is not None
 
 
 def test_use_token_returns_existing_user_and_marks_verified(client, db_session):
@@ -229,7 +236,16 @@ def test_use_token_returns_existing_user_and_marks_verified(client, db_session):
         headers=HEADERS,
     )
     assert res.status_code == 200
-    assert res.json()["email_verified_at"] is not None
+    body = res.json()
+    assert body["identifier"] == "existing@example.com"
+    assert body["token"] == "tok2"
+
+    # 既存ユーザーの email_verified_at が更新されたことを DB で確認
+    existing = (
+        db_session.query(User).filter(User.email == "existing@example.com").first()
+    )
+    assert existing is not None
+    assert existing.email_verified_at is not None
 
 
 def test_use_token_expired_returns_400_and_deletes_token(client, db_session):
