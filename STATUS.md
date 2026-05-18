@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-17 (Railway 本番デプロイ作業中) | ブランチ: main
+> 最終更新: 2026-05-18 (Phase 1-2 本番デプロイ完了 / 本番 smoke 通過) | ブランチ: main
 
 ## 現在のフェーズ
 
@@ -50,14 +50,12 @@
   - `_run_migrations` を撤去し、`apply_migrations(engine)` が `alembic upgrade head` を起動時に実行（`AUTO_MIGRATE=0` で無効化可能）
   - Pre-Alembic な既存 DB に対しては自動的に `alembic stamp head` する救済を実装
   - 運用フローを `docs/technical-guide.md` に追記
-- **Phase 1-2 SMTP 設定: 🟡 アプリ側完了 / Resend DNS・Vercel 設定完了 / Backend デプロイ待ち**
-  - Nodemailer SMTP 設定を `EMAIL_SERVER_HOST/PORT/SECURE/USER/PASSWORD` から構成するよう修正
-  - Mailpit は認証なし、Resend は `smtp.resend.com:465` + `EMAIL_SERVER_USER=resend` + API key で利用可能
-  - `.env.example` と `docs/technical-guide.md` に Resend / SPF / DKIM / DMARC 反映手順を追記
-  - Resend ドメイン `shift-suketto.com` は verified 済み（DKIM / MX / SPF）。送信リージョンは Tokyo (`ap-northeast-1`)
-  - Vercel プロジェクト `dev-shift-scheduling` 作成済み。Root Directory は `frontend`
-  - Vercel 本番環境変数は SMTP / `AUTH_SECRET` / `INTERNAL_AUTH_SECRET` / `NEXTAUTH_URL=https://dev-shift-scheduling.vercel.app` まで設定済み
-  - 残作業: Railway に backend + PostgreSQL を作成し、backend URL を Vercel の `BACKEND_INTERNAL_URL` / `NEXT_PUBLIC_API_URL` に設定して再デプロイ。本番 Magic Link smoke はその後に実施
+- **Phase 1-2 SMTP / 本番デプロイ: ✅ 完了**（2026-05-18）
+  - Vercel: frontend デプロイ済み（Root Directory: `frontend`）
+  - Railway: backend (`devshift-scheduling-production.up.railway.app`) + PostgreSQL を作成・接続
+  - Resend SMTP（`shift-suketto.com`、Tokyo）から本番 Magic Link 送信
+  - 全環境変数同期: Vercel = `AUTH_SECRET` / `INTERNAL_AUTH_SECRET` / `NEXTAUTH_URL` / `BACKEND_INTERNAL_URL` / `NEXT_PUBLIC_API_URL` / `EMAIL_SERVER_*`、Railway = `DATABASE_URL` (Postgres reference) / `AUTH_SECRET` / `INTERNAL_AUTH_SECRET` / `AUTH_COOKIE_NAME=__Secure-authjs.session-token` / `ALLOWED_ORIGINS` / `APP_ENV=production` / `AUTO_MIGRATE=1`
+  - 本番 smoke 通過: Magic Link → サインイン → オンボーディング → 店舗作成 → /schedule → 期間作成まで動作確認済
   - 2026-05-17: Railway プロジェクト作成 + GitHub 連携完了。Railpack による誤検出を防ぐため `backend/railway.json` を追加し Dockerfile builder を明示
   - 2026-05-17: Dockerfile ビルド成功。`startCommand` で `$PORT` が展開されない問題を `sh -c` ラップで修正（Railway は exec 実行のため）
   - 2026-05-17: uvicorn 起動成功。Alembic が `alembic.ini` を見つけられないエラーを修正（Dockerfile に `COPY alembic.ini .` と `COPY alembic/ alembic/` を追加）
