@@ -15,17 +15,17 @@ const nextConfig: NextConfig = {
       // 通常はこのパスを踏まない）。
       return [];
     }
-    return {
-      beforeFiles: [
-        // /api/auth/* は Next.js 側の Auth.js handler が処理するので素通し
-        { source: "/api/auth/:path*", destination: "/api/auth/:path*" },
-        // それ以外の /api/* は Railway backend にプロキシ
-        {
-          source: "/api/:path*",
-          destination: `${BACKEND_PROXY_TARGET}/api/:path*`,
-        },
-      ],
-    };
+    // afterFiles（デフォルト）= Next.js のファイルシステムが先に評価される。
+    // `/api/auth/[...nextauth]/route.ts` が `/api/auth/*` をキャッチするため、
+    // 下のキャッチオール rewrite には引っかからず Auth.js handler が処理する。
+    // その他の `/api/*` はファイルシステムで一致しないため rewrite が適用され
+    // Railway backend に転送される（same-origin で Cookie が送られる）。
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${BACKEND_PROXY_TARGET}/api/:path*`,
+      },
+    ];
   },
 };
 
