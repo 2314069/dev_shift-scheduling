@@ -66,7 +66,7 @@
   - 2026-05-17: 本番 Magic Link smoke で「リンク期限切れ」エラー発生。原因は `/api/internal/auth/verification-tokens/use` が User を返していた点。Auth.js HTTP Adapter は VerificationToken (identifier/token/expires) を期待するため、`expires: new Date(undefined)` で Invalid Date となり Auth.js が期限切れと誤判定していた。backend の response_model を `VerificationTokenResponse` に変更し（User upsert は同一トランザクションで維持）、テストも更新（backend 228 passed）
   - 2026-05-18: 本番 cookie 名のミスマッチを修正。HTTPS 環境では Auth.js が `__Secure-authjs.session-token` 名で cookie を発行するが、backend は `AUTH_COOKIE_NAME` 未設定だと `authjs.session-token` を読みに行く。Railway に `AUTH_COOKIE_NAME=__Secure-authjs.session-token` を追加
   - 2026-05-18: オンボーディング画面の店舗作成で「通信エラー」発生。原因はブラウザ → Railway 直叩きだと SameSite=Lax cookie がクロスサイト fetch で送信されず 401 になる点。`next.config.ts` に `/api/*` (`/api/auth/*` 除く) を Railway にプロキシする rewrite を追加し、`lib/api.ts` をブラウザでは相対パスを使うよう変更（SameSite=Lax のまま same-origin で cookie が流れる構成に変更）。frontend 172 passed
-  - 2026-05-18: `beforeFiles` rewrite で `/api/auth/error` が Railway 404 になっていた問題を修正。`afterFiles`（デフォルト）に変更してファイルシステム優先 = `/api/auth/[...nextauth]/route.ts` が先にキャッチするように
+  - 2026-05-18: `beforeFiles` rewrite で `/api/auth/error` が Railway 404 になっていた問題を修正。当初 `afterFiles` に切り替えたが `[...nextauth]` は **動的ルート** で afterFiles より後に評価されるため依然 Railway に流れていた。最終的に `fallback` に切り替えて動的ルート評価後にだけ rewrite が走るようにした
 - 詳細: `docs/plans/2026-04-28-operation-plan.md` / `docs/plans/2026-04-30-phase0-1-auth-design.md` / `docs/plans/2026-04-30-phase0-1-auth-ui-design.md` / `docs/technical-guide.md` (Alembic 運用)
 
 ## 実装済み機能

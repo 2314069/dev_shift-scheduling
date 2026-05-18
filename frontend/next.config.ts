@@ -15,17 +15,20 @@ const nextConfig: NextConfig = {
       // 通常はこのパスを踏まない）。
       return [];
     }
-    // afterFiles（デフォルト）= Next.js のファイルシステムが先に評価される。
-    // `/api/auth/[...nextauth]/route.ts` が `/api/auth/*` をキャッチするため、
-    // 下のキャッチオール rewrite には引っかからず Auth.js handler が処理する。
-    // その他の `/api/*` はファイルシステムで一致しないため rewrite が適用され
-    // Railway backend に転送される（same-origin で Cookie が送られる）。
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${BACKEND_PROXY_TARGET}/api/:path*`,
-      },
-    ];
+    // `fallback` を使う理由:
+    // Next.js のルーティング順は beforeFiles → 静的ファイル → afterFiles
+    // → 動的ルート → fallback。`/api/auth/[...nextauth]` は **動的ルート** なので、
+    // afterFiles（デフォルト）に置くと先に rewrite が走って Railway へ流れてしまう。
+    // fallback に置けば動的ルートで `[...nextauth]` がキャッチした後の残りに対してだけ
+    // rewrite が適用され、`/api/auth/*` は Auth.js handler に届く。
+    return {
+      fallback: [
+        {
+          source: "/api/:path*",
+          destination: `${BACKEND_PROXY_TARGET}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 
