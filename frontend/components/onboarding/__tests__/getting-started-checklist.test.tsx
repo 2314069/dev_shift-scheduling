@@ -207,6 +207,13 @@ describe("GettingStartedChecklist", () => {
         screen.queryByRole("link", { name: "あとで設定する" }),
       ).not.toBeInTheDocument();
     });
+
+    it("NextActionsCard（「次にやること」）が表示される", () => {
+      expect(screen.getByText("次にやること")).toBeInTheDocument();
+      expect(
+        screen.getByText("スタッフに希望入力ページを共有する"),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("ログアウトボタン", () => {

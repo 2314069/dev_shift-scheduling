@@ -33,6 +33,8 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { FairnessDashboard } from "@/components/fairness-dashboard";
 import { OnboardingHintCard } from "@/components/onboarding/onboarding-hint-card";
+import { PageIntroCard } from "@/components/onboarding/page-intro-card";
+import { HelpTip } from "@/components/ui/help-tip";
 
 export default function SchedulePage() {
   // Period management state
@@ -70,7 +72,9 @@ export default function SchedulePage() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
 
   // Unsubmitted staff reminder
-  const [unsubmittedStaff, setUnsubmittedStaff] = useState<UnsubmittedStaff[]>([]);
+  const [unsubmittedStaff, setUnsubmittedStaff] = useState<UnsubmittedStaff[]>(
+    [],
+  );
 
   // Publish confirm dialog
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -121,7 +125,9 @@ export default function SchedulePage() {
       const [scheduleData, requestsData, unsubmittedData] = await Promise.all([
         apiFetch<ScheduleResponse>(`/api/schedules/${periodId}`),
         apiFetch<StaffRequest[]>(`/api/requests?period_id=${periodId}`),
-        apiFetch<UnsubmittedStaff[]>(`/api/requests/unsubmitted?period_id=${periodId}`),
+        apiFetch<UnsubmittedStaff[]>(
+          `/api/requests/unsubmitted?period_id=${periodId}`,
+        ),
       ]);
       setSelectedPeriod(scheduleData.period);
       setAssignments(scheduleData.assignments);
@@ -267,10 +273,31 @@ export default function SchedulePage() {
         />
       )}
 
+      {/* 初心者向けの使い方ガイド（初期設定完了後に表示） */}
+      {!isSetupIncomplete && (
+        <PageIntroCard
+          storageKey="intro:schedule"
+          title="シフト表の作り方"
+          steps={[
+            "下のフォームでシフトを作る期間を作成・選択する",
+            "「最適化実行」でAIが自動的にシフトを割り当てる",
+            "必要ならカレンダー上で手動編集する",
+            "「公開」を押すとスタッフが /view で確認できる",
+          ]}
+          learnMoreHref="/onboarding/getting-started"
+        />
+      )}
+
       {/* Period Management */}
       <Card>
         <CardHeader>
-          <CardTitle>スケジュール期間</CardTitle>
+          <CardTitle className="inline-flex items-center gap-1.5">
+            スケジュール期間
+            <HelpTip
+              label="シフトを作る対象期間を作成します。月単位での作成を推奨します。"
+              srOnlyLabel="スケジュール期間の説明"
+            />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Create new period */}
@@ -351,33 +378,52 @@ export default function SchedulePage() {
                 <Badge>公開済み</Badge>
               )}
 
-              <Button
-                onClick={handleOptimize}
-                disabled={!isDraft || optimizing}
-              >
-                {optimizing && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {optimizing ? "計算中..." : "最適化実行"}
-              </Button>
+              <div className="inline-flex items-center gap-1.5">
+                <Button
+                  onClick={handleOptimize}
+                  disabled={!isDraft || optimizing}
+                >
+                  {optimizing && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {optimizing ? "計算中..." : "最適化実行"}
+                </Button>
+                <HelpTip
+                  label="登録済みのスタッフ・希望・必要人数を元に、AIが自動でシフトを割り当てます。最大30秒程度かかります。"
+                  srOnlyLabel="最適化実行の説明"
+                />
+              </div>
 
-              <Button
-                variant="secondary"
-                onClick={() => setPublishConfirmOpen(true)}
-                disabled={!isDraft || !hasAssignments || publishing}
-              >
-                {publishing && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                公開
-              </Button>
+              <div className="inline-flex items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  onClick={() => setPublishConfirmOpen(true)}
+                  disabled={!isDraft || !hasAssignments || publishing}
+                >
+                  {publishing && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  公開
+                </Button>
+                <HelpTip
+                  label="公開するとスタッフが /view から確認できます。公開後は編集できません。"
+                  srOnlyLabel="公開の説明"
+                />
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Diagnostics Panel */}
-      {diagnostics.length > 0 && <DiagnosticsPanel diagnostics={diagnostics} />}
+      {diagnostics.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            最適化が失敗した理由と解決のヒントが表示されています。提案に従って設定を見直してください。
+          </p>
+          <DiagnosticsPanel diagnostics={diagnostics} />
+        </div>
+      )}
 
       {/* Unsubmitted Staff Reminder */}
       {unsubmittedStaff.length > 0 && (
@@ -387,6 +433,10 @@ export default function SchedulePage() {
             <p className="text-sm font-medium text-amber-800">
               希望未提出スタッフ（{unsubmittedStaff.length}名）
             </p>
+            <HelpTip
+              label="希望未提出のスタッフがいると、希望シフトを反映できません。スタッフ別URL (/staff?id=N) を共有して催促しましょう。"
+              srOnlyLabel="希望未提出スタッフの説明"
+            />
           </div>
           <ul className="space-y-1">
             {unsubmittedStaff.map((s) => (
@@ -443,8 +493,14 @@ export default function SchedulePage() {
 
               {/* Legend */}
               {shiftSlots.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-3 text-xs">
-                  <span className="font-medium text-gray-600">凡例:</span>
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+                  <span className="font-medium text-gray-600 inline-flex items-center gap-1">
+                    凡例:
+                    <HelpTip
+                      label="セルをクリックすると割り当てを手動編集できます。橙の枠線は自動最適化後に手動で変更したセルです。"
+                      srOnlyLabel="凡例の説明"
+                    />
+                  </span>
                   {shiftSlots.map((slot, index) => {
                     const colors = [
                       "bg-blue-100 text-blue-800",

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { HelpTip } from "@/components/ui/help-tip";
 
 // --- 型安全なキー制約 (#5) ---
 type BooleanKeys<T> = {
@@ -30,7 +31,12 @@ interface BasicSetting {
 const BASIC_SETTINGS: BasicSetting[] = [
   { key: "max_consecutive_days", label: "最大連続勤務日数", min: 1, max: 14 },
   { key: "time_limit", label: "最適化の計算時間上限（秒）", min: 5, max: 300 },
-  { key: "min_shift_interval_hours", label: "連続シフト間の最低休憩時間（時間）", min: 0, max: 24 },
+  {
+    key: "min_shift_interval_hours",
+    label: "連続シフト間の最低休憩時間（時間）",
+    min: 0,
+    max: 24,
+  },
 ];
 
 interface OptimizationFeature {
@@ -75,7 +81,8 @@ const OPTIMIZATION_FEATURES: OptimizationFeature[] = [
     enableKey: "enable_soft_staffing",
     weightKey: "weight_soft_staffing",
     label: "必要人数を「目標」として扱う",
-    description: "必要人数を必須条件ではなく「できれば満たしたい目標」として扱います。解が見つからない場合に有効です",
+    description:
+      "必要人数を必須条件ではなく「できれば満たしたい目標」として扱います。解が見つからない場合に有効です",
     min: 1,
     max: 20,
     step: 1,
@@ -236,27 +243,32 @@ const TOGGLE_CONSTRAINTS: ToggleConstraint[] = [
   {
     key: "enable_shift_interval",
     label: "連続シフト間の休憩を保証する",
-    description: "シフトとシフトの間に、上で設定した最低休憩時間を空けるよう制約します",
+    description:
+      "シフトとシフトの間に、上で設定した最低休憩時間を空けるよう制約します",
   },
   {
     key: "enable_role_staffing",
     label: "役割ごとの最低人数を守る",
-    description: "「正社員」「パート」などの役割ごとに、必要最低人数を満たすようシフトを作成します",
+    description:
+      "「正社員」「パート」などの役割ごとに、必要最低人数を満たすようシフトを作成します",
   },
   {
     key: "enable_min_days_per_week",
     label: "スタッフの週最低勤務日数を守る",
-    description: "各スタッフに設定した「週の最低勤務日数」を下回らないようにシフトを作成します",
+    description:
+      "各スタッフに設定した「週の最低勤務日数」を下回らないようにシフトを作成します",
   },
   {
     key: "enable_reverse_cycle_prohibition",
     label: "逆循環シフトを禁止する",
-    description: "遅番の翌日に早番を入れることを禁止します（例: 15時始め→翌日9時始め）",
+    description:
+      "遅番の翌日に早番を入れることを禁止します（例: 15時始め→翌日9時始め）",
   },
   {
     key: "enable_skill_staffing",
     label: "スキル配置制約を有効にする",
-    description: "「設定 > スキル要件」で登録した条件を満たすようにシフトを作成します",
+    description:
+      "「設定 > スキル要件」で登録した条件を満たすようにシフトを作成します",
   },
 ];
 
@@ -345,10 +357,16 @@ export function SolverConfigPanel() {
       {/* 基本設定 */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             基本設定
+            <HelpTip
+              label="勤務日数の上限・1日の上限など、最適化が必ず守るルールの数値です。"
+              srOnlyLabel="基本設定の説明"
+            />
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">勤務ルールの基本的な数値を設定します。</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            勤務ルールの基本的な数値を設定します。
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {BASIC_SETTINGS.map((setting) => (
@@ -383,6 +401,10 @@ export function SolverConfigPanel() {
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
             業種別プリセット
+            <HelpTip
+              label="飲食・小売・医療など業種別の推奨値を一括適用できます。あとから個別に調整できます。"
+              srOnlyLabel="業種別プリセットの説明"
+            />
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             業種に合った設定をワンクリックで適用できます。適用後も各設定は個別に変更可能です。
@@ -419,10 +441,16 @@ export function SolverConfigPanel() {
       {/* 最適化機能 */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             最適化機能
+            <HelpTip
+              label="『なるべく』叶えたい目標。スイッチでオン/オフ、重みで優先度を調整します。"
+              srOnlyLabel="最適化機能の説明"
+            />
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">オンにすると、その条件を「できるだけ満たすように」シフトを最適化します。重みが大きいほど優先されます。</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            オンにすると、その条件を「できるだけ満たすように」シフトを最適化します。重みが大きいほど優先されます。
+          </p>
         </div>
         <div className="space-y-4">
           {OPTIMIZATION_FEATURES.map((feature) => {
@@ -450,7 +478,13 @@ export function SolverConfigPanel() {
                 </div>
                 {enabled && (
                   <div className="flex items-center gap-4">
-                    <span className="text-xs text-muted-foreground w-8">重み</span>
+                    <span className="text-xs text-muted-foreground w-8 inline-flex items-center gap-1">
+                      重み
+                      <HelpTip
+                        label="大きいほどその条件を優先します。他の最適化機能とトレードオフになります。"
+                        srOnlyLabel="重みの説明"
+                      />
+                    </span>
                     <Slider
                       value={[weight]}
                       min={feature.min}
@@ -479,10 +513,16 @@ export function SolverConfigPanel() {
       {/* 追加制約 */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             追加制約
+            <HelpTip
+              label="『絶対に守る』ルール。オンにすると守れない場合は最適化が失敗します。"
+              srOnlyLabel="追加制約の説明"
+            />
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">オンにすると、その条件を必ず守るようにシフトを作成します。</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            オンにすると、その条件を必ず守るようにシフトを作成します。
+          </p>
         </div>
         <div className="space-y-3">
           {TOGGLE_CONSTRAINTS.map((constraint) => (

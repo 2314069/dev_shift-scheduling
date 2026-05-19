@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { HelpTip } from "@/components/ui/help-tip";
 
 export function ShiftSlotTable() {
   const [slots, setSlots] = useState<ShiftSlot[]>([]);
@@ -169,9 +170,33 @@ export function ShiftSlotTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>シフト名</TableHead>
-                <TableHead>開始時間</TableHead>
-                <TableHead>終了時間</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    シフト名
+                    <HelpTip
+                      label="『早番』『遅番』など、わかりやすい名前を付けます。"
+                      srOnlyLabel="シフト名の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    開始時間
+                    <HelpTip
+                      label="この枠の勤務開始時刻。"
+                      srOnlyLabel="開始時間の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    終了時間
+                    <HelpTip
+                      label="この枠の勤務終了時刻。開始より後の時刻を指定してください。"
+                      srOnlyLabel="終了時間の説明"
+                    />
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
