@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-19 (初心者向け UI ガイド拡張 完了) | ブランチ: claude/check-project-status-mv7eF
+> 最終更新: 2026-05-19 (ログイン前ランディングページ 追加) | ブランチ: claude/check-project-status-mv7eF
 
 ## 現在のフェーズ
 
@@ -111,12 +111,13 @@
 | オンボーディング画面 | `app/(onboarding)/` | ✅ 完了 |
 | アカウント削除画面 | `app/account/delete/page.tsx`, `components/account/delete-account-form.tsx` | ✅ 完了 (Phase 1-8) |
 | 初心者向け UI ガイド（HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard） | `components/ui/help-tip.tsx`, `components/onboarding/{page-intro-card,staff-onboarding-hint,next-actions-card}.tsx` | ✅ 完了 (2026-05-19) |
+| ログイン前ランディングページ（AI 自動シフト割り当て + 無料訴求 + 3 ステップ説明） | `components/landing/landing-page.tsx`, `app/page.tsx` | ✅ 完了 (2026-05-19) |
 
 ## テスト状況
 
 ```
 バックエンド: 228 passed (2026-05-05 時点, Phase 1-6 ログマスキング +16 件含む)
-フロントエンド: 193 passed (2026-05-19 時点, 初心者向けUIガイド拡張 +25 件含む)
+フロントエンド: 200 passed (2026-05-19 時点, ランディングページ +7 件含む)
 E2E (Playwright): 6 specs (うち 3 件 skip, 2026-05-05 時点, onboarding.spec.ts 追加)
 ※ main の希望未提出スタッフリマインダー統合後の再確認が必要（2026-05-06 時点）
 ```
@@ -136,11 +137,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| (HEAD) | feat(ui): add beginner-friendly guides (HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard) |
+| (HEAD) | feat(ui): add pre-login landing page with AI auto-scheduling pitch and free signup CTA |
+| `d4e235c` | feat(ui): add beginner-friendly guides (HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard) |
 | `3b7e9a3` | docs(status): mark Phase 1-2 production deploy complete |
 | `27f9dee` | fix(deploy): use fallback rewrite so Auth.js dynamic route wins |
 | `d11ad72` | fix(deploy): switch /api/* rewrite to afterFiles so Auth.js handler runs first |
-| `6060246` | fix(deploy): proxy browser /api/* through Vercel to keep cookies same-origin |
 
 ## TODO / フェーズ2 候補
 
