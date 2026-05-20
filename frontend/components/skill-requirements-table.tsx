@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { HelpTip } from "@/components/ui/help-tip";
 
 export function SkillRequirementsTable() {
   const [requirements, setRequirements] = useState<SkillRequirement[]>([]);
@@ -32,7 +33,9 @@ export function SkillRequirementsTable() {
   const [newMinCount, setNewMinCount] = useState<string>("1");
 
   useEffect(() => {
-    apiFetch<SkillRequirement[]>("/api/skill-requirements").then(setRequirements);
+    apiFetch<SkillRequirement[]>("/api/skill-requirements").then(
+      setRequirements,
+    );
     apiFetch<ShiftSlot[]>("/api/shift-slots").then(setSlots);
   }, []);
 
@@ -47,15 +50,18 @@ export function SkillRequirementsTable() {
       return;
     }
     try {
-      const created = await apiFetch<SkillRequirement>("/api/skill-requirements", {
-        method: "POST",
-        body: JSON.stringify({
-          shift_slot_id: parseInt(newSlotId, 10),
-          day_type: newDayType,
-          skill: newSkill.trim(),
-          min_count: count,
-        }),
-      });
+      const created = await apiFetch<SkillRequirement>(
+        "/api/skill-requirements",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            shift_slot_id: parseInt(newSlotId, 10),
+            day_type: newDayType,
+            skill: newSkill.trim(),
+            min_count: count,
+          }),
+        },
+      );
       setRequirements((prev) => [...prev, created]);
       setNewSkill("");
       setNewMinCount("1");
@@ -75,18 +81,51 @@ export function SkillRequirementsTable() {
     }
   }
 
-  const slotName = (id: number) => slots.find((s) => s.id === id)?.name ?? String(id);
-  const dayTypeLabel = (dt: string) => dt === "weekday" ? "平日" : "土日祝";
+  const slotName = (id: number) =>
+    slots.find((s) => s.id === id)?.name ?? String(id);
+  const dayTypeLabel = (dt: string) => (dt === "weekday" ? "平日" : "土日祝");
 
   return (
     <div className="space-y-4">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>シフト枠</TableHead>
-            <TableHead>平日/土日祝</TableHead>
-            <TableHead>スキル</TableHead>
-            <TableHead>最低人数</TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1">
+                シフト枠
+                <HelpTip
+                  label="このスキル要件を適用するシフト枠。"
+                  srOnlyLabel="シフト枠の説明"
+                />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1">
+                平日/土日祝
+                <HelpTip
+                  label="どちらの日種別で要件を満たすかを指定。"
+                  srOnlyLabel="平日/土日祝の説明"
+                />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1">
+                スキル
+                <HelpTip
+                  label="例: 『調理師免許』『救命救急講習』など、スタッフ側にも同名のスキルを設定しておく必要があります。"
+                  srOnlyLabel="スキルの説明"
+                />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1">
+                最低人数
+                <HelpTip
+                  label="そのスキルを持つスタッフを最低何名割り当てるか。"
+                  srOnlyLabel="最低人数の説明"
+                />
+              </span>
+            </TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -111,8 +150,14 @@ export function SkillRequirementsTable() {
           ))}
           {requirements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                スキル要件がまだ登録されていません
+              <TableCell
+                colSpan={5}
+                className="text-center text-muted-foreground py-6"
+              >
+                <p className="mb-1">スキル要件がまだ登録されていません</p>
+                <p className="text-xs">
+                  下のフォームから追加できます。スタッフ側にも同名のスキルを設定してください。
+                </p>
               </TableCell>
             </TableRow>
           )}
@@ -129,7 +174,9 @@ export function SkillRequirementsTable() {
             </SelectTrigger>
             <SelectContent>
               {slots.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

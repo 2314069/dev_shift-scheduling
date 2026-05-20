@@ -16,6 +16,7 @@ import { SignOutLink } from "@/components/auth/sign-out-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { NextActionsCard } from "@/components/onboarding/next-actions-card";
 
 interface GettingStartedChecklistProps {
   staffCount: number;
@@ -156,6 +157,7 @@ export function GettingStartedChecklist({
               <Button asChild className="w-full">
                 <Link href="/schedule">シフト表を開く</Link>
               </Button>
+              <NextActionsCard />
             </div>
           ) : (
             <Button

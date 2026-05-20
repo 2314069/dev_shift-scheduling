@@ -25,6 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RequestCalendar, RequestEntry } from "@/components/request-calendar";
+import { PageIntroCard } from "@/components/onboarding/page-intro-card";
+import { StaffOnboardingHint } from "@/components/onboarding/staff-onboarding-hint";
+import { HelpTip } from "@/components/ui/help-tip";
 
 function StaffPageContent() {
   const searchParams = useSearchParams();
@@ -39,10 +42,10 @@ function StaffPageContent() {
   // Period state
   const [periods, setPeriods] = useState<SchedulePeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(
-    periodIdParam || ""
+    periodIdParam || "",
   );
   const [selectedPeriod, setSelectedPeriod] = useState<SchedulePeriod | null>(
-    null
+    null,
   );
   const [loadingPeriods, setLoadingPeriods] = useState(true);
 
@@ -115,13 +118,13 @@ function StaffPageContent() {
         const [scheduleData, requestsData] = await Promise.all([
           apiFetch<ScheduleResponse>(`/api/schedules/${periodId}`),
           apiFetch<StaffRequest[]>(
-            `/api/requests?period_id=${periodId}&staff_id=${staffId}`
+            `/api/requests?period_id=${periodId}&staff_id=${staffId}`,
           ),
         ]);
 
         setSelectedPeriod(scheduleData.period);
         setAssignments(
-          scheduleData.assignments.filter((a) => a.staff_id === staffId)
+          scheduleData.assignments.filter((a) => a.staff_id === staffId),
         );
         setExistingRequests(requestsData);
 
@@ -140,7 +143,7 @@ function StaffPageContent() {
         setLoadingRequests(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -194,7 +197,7 @@ function StaffPageContent() {
           date,
           shift_slot_id: entry.shift_slot_id,
           type: entry.type,
-        })
+        }),
       );
 
       await apiFetch<StaffRequest[]>("/api/requests", {
@@ -208,7 +211,7 @@ function StaffPageContent() {
       toast.success("希望を提出しました");
 
       const updatedRequests = await apiFetch<StaffRequest[]>(
-        `/api/requests?period_id=${selectedPeriodId}&staff_id=${selectedStaff.id}`
+        `/api/requests?period_id=${selectedPeriodId}&staff_id=${selectedStaff.id}`,
       );
       setExistingRequests(updatedRequests);
     } catch (e) {
@@ -238,6 +241,16 @@ function StaffPageContent() {
     return (
       <div className="container mx-auto py-8 space-y-6">
         <h1 className="text-2xl font-bold">スタッフ希望入力</h1>
+        <PageIntroCard
+          storageKey="intro:staff-select"
+          title="スタッフ希望入力の流れ"
+          steps={[
+            "自分の名前を選ぶ",
+            "シフト期間を選ぶ",
+            "カレンダーで希望シフト／出勤不可を入力",
+            "「希望を提出」を押して保存",
+          ]}
+        />
         <Card>
           <CardHeader>
             <CardTitle>スタッフを選択してください</CardTitle>
@@ -246,7 +259,10 @@ function StaffPageContent() {
             {staffList.length === 0 ? (
               <p className="text-muted-foreground">
                 スタッフが登録されていません。{" "}
-                <Link href="/settings" className="underline hover:text-foreground">
+                <Link
+                  href="/settings"
+                  className="underline hover:text-foreground"
+                >
                   設定画面
                 </Link>
                 から追加してください。
@@ -278,6 +294,14 @@ function StaffPageContent() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       <h1 className="text-2xl font-bold">スタッフ希望入力</h1>
+
+      {/* Staff onboarding: URL 由来でアクセスしたスタッフに案内 */}
+      {staffIdParam && selectedStaff && (
+        <StaffOnboardingHint
+          staffName={selectedStaff.name}
+          storageKey={`staff-intro:${selectedStaff.id}`}
+        />
+      )}
 
       {/* Staff name display */}
       {selectedStaff && (
@@ -348,8 +372,7 @@ function StaffPageContent() {
         <Card>
           <CardHeader>
             <CardTitle>
-              希望入力 ({selectedPeriod.start_date} ~{" "}
-              {selectedPeriod.end_date})
+              希望入力 ({selectedPeriod.start_date} ~ {selectedPeriod.end_date})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -357,9 +380,25 @@ function StaffPageContent() {
               <p className="text-muted-foreground">読み込み中...</p>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground">
-                  日付をクリックして希望を入力してください。
-                </p>
+                <div className="rounded-md border border-muted bg-muted/30 p-3 text-sm space-y-1">
+                  <p className="font-medium">
+                    日付をクリックして希望を入力してください。
+                  </p>
+                  <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                    <li>
+                      <strong>希望シフト</strong>:
+                      その日に入りたいシフト枠（早番／遅番など）を選ぶ
+                    </li>
+                    <li>
+                      <strong>出勤不可</strong>:
+                      その日は絶対に勤務できない（最適化で必ず守られます）
+                    </li>
+                    <li>
+                      <strong>未入力</strong>:
+                      シフトに入っても入らなくても良い（最適化に任せる）
+                    </li>
+                  </ul>
+                </div>
                 <RequestCalendar
                   startDate={selectedPeriod.start_date}
                   endDate={selectedPeriod.end_date}
@@ -369,19 +408,29 @@ function StaffPageContent() {
                 />
 
                 {/* Submit button */}
-                <div className="flex items-center gap-4 pt-4 border-t">
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={submitting || pendingRequests.size === 0}
-                  >
-                    {submitting && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {submitting ? "提出中..." : "希望を提出"}
-                  </Button>
+                <div className="flex items-center gap-4 pt-4 border-t flex-wrap">
+                  <div className="inline-flex items-center gap-1.5">
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitting || pendingRequests.size === 0}
+                    >
+                      {submitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {submitting ? "提出中..." : "希望を提出"}
+                    </Button>
+                    <HelpTip
+                      label="提出後も、期間が下書きの間は何度でも上書きできます。"
+                      srOnlyLabel="希望を提出の説明"
+                    />
+                  </div>
                   {hasChanges && pendingRequests.size > 0 && (
-                    <span className="text-sm text-amber-600">
+                    <span className="text-sm text-amber-600 inline-flex items-center gap-1">
                       未保存の変更があります
+                      <HelpTip
+                        label="「希望を提出」を押すまでサーバーに保存されません。"
+                        srOnlyLabel="未保存の変更の説明"
+                      />
                     </span>
                   )}
                   <span className="text-sm text-muted-foreground">
@@ -398,12 +447,18 @@ function StaffPageContent() {
       {selectedPeriod && isPublished && selectedStaff && (
         <Card>
           <CardHeader>
-            <CardTitle>確定シフト</CardTitle>
+            <CardTitle className="inline-flex items-center gap-1.5">
+              確定シフト
+              <HelpTip
+                label="管理者が公開した、あなたの最終シフトです。"
+                srOnlyLabel="確定シフトの説明"
+              />
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {assignments.length === 0 ? (
               <p className="text-muted-foreground">
-                このスタッフの確定シフトはありません。
+                このスタッフの確定シフトはまだありません。公開後にここに表示されます。まずは希望を提出してください。
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -423,13 +478,12 @@ function StaffPageContent() {
                       .sort(
                         (a, b) =>
                           new Date(a.date).getTime() -
-                          new Date(b.date).getTime()
+                          new Date(b.date).getTime(),
                       )
                       .map((assignment) => {
                         const d = new Date(assignment.date + "T00:00:00");
                         const dow = DAY_NAMES_FULL[d.getDay()];
-                        const isWeekend =
-                          d.getDay() === 0 || d.getDay() === 6;
+                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
                         return (
                           <tr key={assignment.id}>

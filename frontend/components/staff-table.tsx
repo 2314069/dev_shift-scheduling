@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { HelpTip } from "@/components/ui/help-tip";
 
 export function StaffTable() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -150,8 +151,12 @@ export function StaffTable() {
             <p className="text-muted-foreground mb-1">
               スタッフが登録されていません
             </p>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-2">
               シフトを作成するには、まずスタッフを追加してください。
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              追加後はスタッフごとに <code>/staff?id=N</code>{" "}
+              のURLが発行され、LINEなどで共有して希望入力してもらえます。
             </p>
             <Button onClick={openAddDialog}>最初のスタッフを追加</Button>
           </div>
@@ -159,9 +164,33 @@ export function StaffTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>名前</TableHead>
-                <TableHead>役割</TableHead>
-                <TableHead>最大勤務日数/週</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    名前
+                    <HelpTip
+                      label="シフト表に表示される名前。あとから変更できます。"
+                      srOnlyLabel="名前の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    役割
+                    <HelpTip
+                      label="『正社員』『パート』など。空欄でもOK。役割別の最低人数を設定したい場合に使います。"
+                      srOnlyLabel="役割の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    最大勤務日数/週
+                    <HelpTip
+                      label="このスタッフが週に何日まで入れるかの上限。シフト最適化で守られます。"
+                      srOnlyLabel="最大勤務日数/週の説明"
+                    />
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>

@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { HelpTip } from "@/components/ui/help-tip";
 
 const DAY_TYPE_LABELS: Record<string, string> = {
   weekday: "平日",
@@ -43,7 +44,9 @@ export function StaffingRequirementsTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingReq, setEditingReq] = useState<StaffingRequirement | null>(null);
+  const [editingReq, setEditingReq] = useState<StaffingRequirement | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -52,8 +55,7 @@ export function StaffingRequirementsTable() {
   const [formMinCount, setFormMinCount] = useState(1);
 
   // Validation
-  const minCountError =
-    formMinCount < 1 ? "1以上の値を入力してください" : null;
+  const minCountError = formMinCount < 1 ? "1以上の値を入力してください" : null;
   const hasValidationError = minCountError !== null;
 
   async function fetchData() {
@@ -115,7 +117,7 @@ export function StaffingRequirementsTable() {
           {
             method: "PUT",
             body: JSON.stringify(body),
-          }
+          },
         );
         toast.success("必要人数を更新しました");
       } else {
@@ -176,9 +178,33 @@ export function StaffingRequirementsTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>シフト枠</TableHead>
-                <TableHead>日種別</TableHead>
-                <TableHead>最低人数</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    シフト枠
+                    <HelpTip
+                      label="必要人数を設定する対象のシフト枠（早番／遅番など）。"
+                      srOnlyLabel="シフト枠の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    日種別
+                    <HelpTip
+                      label="平日と休日（土日）で別々の人数を設定できます。"
+                      srOnlyLabel="日種別の説明"
+                    />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    最低人数
+                    <HelpTip
+                      label="この枠に必ず割り当てたい最低人数。守れないと最適化が失敗します。"
+                      srOnlyLabel="最低人数の説明"
+                    />
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -212,7 +238,7 @@ export function StaffingRequirementsTable() {
                 {editingReq ? "必要人数編集" : "必要人数追加"}
               </DialogTitle>
               <DialogDescription>
-                必要人数の情報を入力してください。
+                平日／休日ごとに、各シフト枠で必要な最低人数を設定します。
               </DialogDescription>
             </DialogHeader>
 

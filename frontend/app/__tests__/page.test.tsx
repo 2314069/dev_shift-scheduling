@@ -1,8 +1,9 @@
 /**
- * app/page.tsx の単体テスト（ルートランディング 3 状態分岐）
+ * app/page.tsx の単体テスト（ルートの状態分岐）
  *
  * テスト対象:
- *   - 未認証（session === null）→ /signin にリダイレクト
+ *   - 未認証（session === null）→ ランディングページを描画
+ *   - fetchMeServer が null（401）→ ランディングページを描画
  *   - 認証済み + 店舗未所属（organizations: []）→ /onboarding にリダイレクト
  *   - 認証済み + 店舗所属あり（organizations: [...]）→ /schedule にリダイレクト
  *
@@ -13,6 +14,7 @@
  * @see docs/plans/2026-05-05-phase1-1-onboarding-design.md §5.3, §7.1
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { redirect } from "next/navigation";
 
 // redirect は test/setup.ts でグローバルモック済み
@@ -78,28 +80,36 @@ describe("Home (app/page.tsx) の状態分岐", () => {
     mockRedirect.mockReset();
   });
 
-  it("未認証（session === null）の場合は /signin にリダイレクトする", async () => {
+  it("未認証（session === null）の場合はランディングページを描画する", async () => {
     mockAuth.mockResolvedValueOnce(null);
 
-    await Home();
+    const ui = await Home();
+    render(ui);
 
-    expect(mockRedirect).toHaveBeenCalledWith("/signin");
-    expect(mockRedirect).not.toHaveBeenCalledWith("/onboarding");
-    expect(mockRedirect).not.toHaveBeenCalledWith("/schedule");
+    expect(
+      screen.getByRole("heading", { level: 1, name: /シフト作りに/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^無料で始める/ })).toHaveAttribute(
+      "href",
+      "/signin",
+    );
+    expect(mockRedirect).not.toHaveBeenCalled();
   });
 
-  it("fetchMeServer が null（401）を返す場合は /signin にリダイレクトする", async () => {
+  it("fetchMeServer が null（401）を返す場合もランディングページを描画する", async () => {
     mockAuth.mockResolvedValueOnce({
       user: { id: "user-1", email: "owner@example.com" },
       expires: "2099-01-01",
     });
     mockFetchMeServer.mockResolvedValueOnce(null);
 
-    await Home();
+    const ui = await Home();
+    render(ui);
 
-    expect(mockRedirect).toHaveBeenCalledWith("/signin");
-    expect(mockRedirect).not.toHaveBeenCalledWith("/onboarding");
-    expect(mockRedirect).not.toHaveBeenCalledWith("/schedule");
+    expect(
+      screen.getByRole("heading", { level: 1, name: /シフト作りに/ }),
+    ).toBeInTheDocument();
+    expect(mockRedirect).not.toHaveBeenCalled();
   });
 
   it("認証済み + 店舗未所属（organizations: []）の場合は /onboarding にリダイレクトする", async () => {
