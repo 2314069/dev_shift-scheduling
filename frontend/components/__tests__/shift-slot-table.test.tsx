@@ -12,8 +12,18 @@ beforeEach(() => {
 describe("ShiftSlotTable", () => {
   it("displays shift slot list", async () => {
     const slots = [
-      makeShiftSlot({ id: 1, name: "早番", start_time: "09:00", end_time: "17:00" }),
-      makeShiftSlot({ id: 2, name: "遅番", start_time: "13:00", end_time: "21:00" }),
+      makeShiftSlot({
+        id: 1,
+        name: "早番",
+        start_time: "09:00",
+        end_time: "17:00",
+      }),
+      makeShiftSlot({
+        id: 2,
+        name: "遅番",
+        start_time: "13:00",
+        end_time: "21:00",
+      }),
     ];
     mockApiFetch.mockResolvedValueOnce(slots);
 
@@ -40,26 +50,40 @@ describe("ShiftSlotTable", () => {
     await user.click(screen.getByRole("button", { name: "追加" }));
     expect(screen.getByText("シフト枠追加")).toBeInTheDocument();
 
+    // 時刻フィールドの入力例ヒントが表示される
+    expect(screen.getByText(/24 時間表記で入力します/)).toBeInTheDocument();
+    expect(screen.getByText(/深夜帯で翌日にまたぐ場合/)).toBeInTheDocument();
+
     // Fill name
     const nameInput = screen.getByPlaceholderText("例: 早番");
     await user.type(nameInput, "夜勤");
 
     // Save
-    mockApiFetch.mockResolvedValueOnce({ id: 1, name: "夜勤", start_time: "09:00", end_time: "17:00" });
+    mockApiFetch.mockResolvedValueOnce({
+      id: 1,
+      name: "夜勤",
+      start_time: "09:00",
+      end_time: "17:00",
+    });
     mockApiFetch.mockResolvedValueOnce([]); // re-fetch
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/shift-slots",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
 
   it("opens edit dialog with pre-filled data", async () => {
     const user = userEvent.setup();
-    const slot = makeShiftSlot({ id: 1, name: "早番", start_time: "09:00", end_time: "17:00" });
+    const slot = makeShiftSlot({
+      id: 1,
+      name: "早番",
+      start_time: "09:00",
+      end_time: "17:00",
+    });
     mockApiFetch.mockResolvedValueOnce([slot]);
 
     render(<ShiftSlotTable />);
@@ -94,7 +118,7 @@ describe("ShiftSlotTable", () => {
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/shift-slots/1",
-        expect.objectContaining({ method: "DELETE" })
+        expect.objectContaining({ method: "DELETE" }),
       );
     });
   });

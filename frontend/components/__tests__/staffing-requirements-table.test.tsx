@@ -19,8 +19,18 @@ describe("StaffingRequirementsTable", () => {
       makeShiftSlot({ id: 2, name: "遅番" }),
     ];
     const reqs = [
-      makeStaffingRequirement({ id: 1, shift_slot_id: 1, day_type: "weekday", min_count: 2 }),
-      makeStaffingRequirement({ id: 2, shift_slot_id: 2, day_type: "weekend", min_count: 1 }),
+      makeStaffingRequirement({
+        id: 1,
+        shift_slot_id: 1,
+        day_type: "weekday",
+        min_count: 2,
+      }),
+      makeStaffingRequirement({
+        id: 2,
+        shift_slot_id: 2,
+        day_type: "weekend",
+        min_count: 1,
+      }),
     ];
     mockApiFetch.mockResolvedValueOnce(reqs); // requirements
     mockApiFetch.mockResolvedValueOnce(slots); // shift-slots
@@ -47,7 +57,9 @@ describe("StaffingRequirementsTable", () => {
     render(<StaffingRequirementsTable />);
 
     await waitFor(() => {
-      expect(screen.getByText("先にシフト枠を登録してください。")).toBeInTheDocument();
+      expect(
+        screen.getByText("先にシフト枠を登録してください。"),
+      ).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "追加" })).toBeDisabled();
   });
@@ -67,8 +79,18 @@ describe("StaffingRequirementsTable", () => {
     await user.click(screen.getByRole("button", { name: "追加" }));
     expect(screen.getByText("必要人数追加")).toBeInTheDocument();
 
+    // 最低人数の入力例ヒントが表示される
+    expect(
+      screen.getByText(/平日早番に最低 2 人配置したいなら 2/),
+    ).toBeInTheDocument();
+
     // Save
-    mockApiFetch.mockResolvedValueOnce({ id: 1, shift_slot_id: 1, day_type: "weekday", min_count: 1 });
+    mockApiFetch.mockResolvedValueOnce({
+      id: 1,
+      shift_slot_id: 1,
+      day_type: "weekday",
+      min_count: 1,
+    });
     mockApiFetch.mockResolvedValueOnce([]); // re-fetch requirements
     mockApiFetch.mockResolvedValueOnce(slots); // re-fetch slots
     await user.click(screen.getByRole("button", { name: "保存" }));
@@ -76,7 +98,7 @@ describe("StaffingRequirementsTable", () => {
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/staffing-requirements",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
@@ -85,7 +107,12 @@ describe("StaffingRequirementsTable", () => {
     const user = userEvent.setup();
     const slots = [makeShiftSlot({ id: 1, name: "早番" })];
     const reqs = [
-      makeStaffingRequirement({ id: 1, shift_slot_id: 1, day_type: "weekday", min_count: 3 }),
+      makeStaffingRequirement({
+        id: 1,
+        shift_slot_id: 1,
+        day_type: "weekday",
+        min_count: 3,
+      }),
     ];
     mockApiFetch.mockResolvedValueOnce(reqs);
     mockApiFetch.mockResolvedValueOnce(slots);
@@ -109,7 +136,9 @@ describe("StaffingRequirementsTable", () => {
     render(<StaffingRequirementsTable />);
 
     await waitFor(() => {
-      expect(screen.getByText("必要人数が設定されていません")).toBeInTheDocument();
+      expect(
+        screen.getByText("必要人数が設定されていません"),
+      ).toBeInTheDocument();
     });
   });
 });

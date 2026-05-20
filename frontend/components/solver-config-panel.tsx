@@ -390,6 +390,9 @@ export function SolverConfigPanel() {
                   }
                 }}
               />
+              <p className="text-xs text-muted-foreground">
+                {setting.min}〜{setting.max} の範囲で入力
+              </p>
             </div>
           ))}
         </div>

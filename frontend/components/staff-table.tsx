@@ -265,6 +265,9 @@ export function StaffTable() {
                   value={formMaxDays}
                   onChange={(e) => setFormMaxDays(Number(e.target.value))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  1〜7 日。例: 週休 2 日なら 5、フルタイム想定なら 6 〜 7
+                </p>
                 {maxDaysError && (
                   <p className="text-xs text-destructive">{maxDaysError}</p>
                 )}

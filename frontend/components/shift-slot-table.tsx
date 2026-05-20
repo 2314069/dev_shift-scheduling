@@ -235,7 +235,7 @@ export function ShiftSlotTable() {
                 {editingSlot ? "シフト枠編集" : "シフト枠追加"}
               </DialogTitle>
               <DialogDescription>
-                シフト枠の情報を入力してください。
+                シフト枠は「早番」「遅番」のように、店舗が用意する時間帯のひとまとまりです。
               </DialogDescription>
             </DialogHeader>
 
@@ -258,6 +258,9 @@ export function ShiftSlotTable() {
                   value={formStartTime}
                   onChange={(e) => setFormStartTime(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  24 時間表記で入力します（例: 09:00）
+                </p>
                 {startTimeError && (
                   <p className="text-xs text-destructive">{startTimeError}</p>
                 )}
@@ -269,6 +272,10 @@ export function ShiftSlotTable() {
                   value={formEndTime}
                   onChange={(e) => setFormEndTime(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  例: 17:00。深夜帯で翌日にまたぐ場合は、終了が開始より前でも
+                  OK（例: 22:00 → 翌 02:00）
+                </p>
                 {endTimeError && (
                   <p className="text-xs text-destructive">{endTimeError}</p>
                 )}

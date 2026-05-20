@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-19 (ログイン前ランディングページ 追加) | ブランチ: claude/check-project-status-mv7eF
+> 最終更新: 2026-05-20 (フォーム入力ガイドの横断強化) | ブランチ: claude/check-project-status-mv7eF
 
 ## 現在のフェーズ
 
@@ -112,6 +112,7 @@
 | アカウント削除画面 | `app/account/delete/page.tsx`, `components/account/delete-account-form.tsx` | ✅ 完了 (Phase 1-8) |
 | 初心者向け UI ガイド（HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard） | `components/ui/help-tip.tsx`, `components/onboarding/{page-intro-card,staff-onboarding-hint,next-actions-card}.tsx` | ✅ 完了 (2026-05-19) |
 | ログイン前ランディングページ（AI 自動シフト割り当て + 無料訴求 + 3 ステップ説明） | `components/landing/landing-page.tsx`, `app/page.tsx` | ✅ 完了 (2026-05-19) |
+| フォーム入力ガイドの横断強化（時刻例示・最低人数例示・Select placeholder・range ヒント） | `components/{shift-slot,staff,staffing-requirements,skill-requirements}-table.tsx`, `components/solver-config-panel.tsx` | ✅ 完了 (2026-05-20) |
 
 ## テスト状況
 
@@ -137,11 +138,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| (HEAD) | feat(ui): add pre-login landing page with AI auto-scheduling pitch and free signup CTA |
+| (HEAD) | feat(ui): enrich form input guides across settings dialogs and solver panel |
+| `c348706` | feat(ui): add pre-login landing page with AI auto-scheduling pitch and free signup CTA |
 | `d4e235c` | feat(ui): add beginner-friendly guides (HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard) |
 | `3b7e9a3` | docs(status): mark Phase 1-2 production deploy complete |
 | `27f9dee` | fix(deploy): use fallback rewrite so Auth.js dynamic route wins |
-| `d11ad72` | fix(deploy): switch /api/* rewrite to afterFiles so Auth.js handler runs first |
 
 ## TODO / フェーズ2 候補
 

@@ -18,8 +18,18 @@ describe("StaffTable", () => {
 
   it("displays staff list after loading", async () => {
     const staffList = [
-      makeStaff({ id: 1, name: "山田太郎", role: "正社員", max_days_per_week: 5 }),
-      makeStaff({ id: 2, name: "佐藤花子", role: "パート", max_days_per_week: 3 }),
+      makeStaff({
+        id: 1,
+        name: "山田太郎",
+        role: "正社員",
+        max_days_per_week: 5,
+      }),
+      makeStaff({
+        id: 2,
+        name: "佐藤花子",
+        role: "パート",
+        max_days_per_week: 3,
+      }),
     ];
     mockApiFetch.mockResolvedValueOnce(staffList);
 
@@ -47,26 +57,41 @@ describe("StaffTable", () => {
     await user.click(screen.getByRole("button", { name: "追加" }));
     expect(screen.getByText("スタッフ追加")).toBeInTheDocument();
 
+    // 最大勤務日数/週 の入力例ヒントが表示される
+    expect(
+      screen.getByText(/週休 2 日なら 5、フルタイム想定なら 6 〜 7/),
+    ).toBeInTheDocument();
+
     // Fill form
     const nameInput = screen.getByPlaceholderText("例: 山田太郎");
     await user.type(nameInput, "新規スタッフ");
 
     // Save
-    mockApiFetch.mockResolvedValueOnce({ id: 1, name: "新規スタッフ", role: "", max_days_per_week: 5 });
+    mockApiFetch.mockResolvedValueOnce({
+      id: 1,
+      name: "新規スタッフ",
+      role: "",
+      max_days_per_week: 5,
+    });
     mockApiFetch.mockResolvedValueOnce([]); // re-fetch
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/staff",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({ method: "POST" }),
       );
     });
   });
 
   it("opens edit dialog with pre-filled data", async () => {
     const user = userEvent.setup();
-    const staff = makeStaff({ id: 1, name: "山田太郎", role: "正社員", max_days_per_week: 5 });
+    const staff = makeStaff({
+      id: 1,
+      name: "山田太郎",
+      role: "正社員",
+      max_days_per_week: 5,
+    });
     mockApiFetch.mockResolvedValueOnce([staff]);
 
     render(<StaffTable />);
@@ -105,7 +130,7 @@ describe("StaffTable", () => {
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         "/api/staff/1",
-        expect.objectContaining({ method: "DELETE" })
+        expect.objectContaining({ method: "DELETE" }),
       );
     });
   });

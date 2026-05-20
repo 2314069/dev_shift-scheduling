@@ -170,7 +170,7 @@ export function SkillRequirementsTable() {
           <label className="text-xs text-muted-foreground">シフト枠</label>
           <Select value={newSlotId} onValueChange={setNewSlotId}>
             <SelectTrigger className="w-32">
-              <SelectValue placeholder="選択" />
+              <SelectValue placeholder="シフト枠を選択" />
             </SelectTrigger>
             <SelectContent>
               {slots.map((s) => (
@@ -210,6 +210,7 @@ export function SkillRequirementsTable() {
             value={newMinCount}
             onChange={(e) => setNewMinCount(e.target.value)}
             className="w-20"
+            placeholder="例: 1"
           />
         </div>
         <Button onClick={handleAdd} variant="outline" size="sm">

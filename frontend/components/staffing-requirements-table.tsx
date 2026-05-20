@@ -238,7 +238,7 @@ export function StaffingRequirementsTable() {
                 {editingReq ? "必要人数編集" : "必要人数追加"}
               </DialogTitle>
               <DialogDescription>
-                平日／休日ごとに、各シフト枠で必要な最低人数を設定します。
+                平日／休日ごとに、各シフト枠で最低限必要な人数を設定します。これより少ない人数しか集まらない場合は最適化が失敗します。
               </DialogDescription>
             </DialogHeader>
 
@@ -288,6 +288,9 @@ export function StaffingRequirementsTable() {
                   value={formMinCount}
                   onChange={(e) => setFormMinCount(Number(e.target.value))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  例: 平日早番に最低 2 人配置したいなら 2
+                </p>
                 {minCountError && (
                   <p className="text-xs text-destructive">{minCountError}</p>
                 )}
