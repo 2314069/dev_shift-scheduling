@@ -1,6 +1,6 @@
 # プロジェクト状況
 
-> 最終更新: 2026-05-20 (フォーム入力ガイドの横断強化) | ブランチ: claude/check-project-status-mv7eF
+> 最終更新: 2026-05-21 (動線整理: /settings タブ化 + /schedule 公平性カード折りたたみ) | ブランチ: claude/check-project-status-mv7eF
 
 ## 現在のフェーズ
 
@@ -138,11 +138,11 @@ E2E 実行の前提:
 
 | コミット | 内容 |
 |---------|------|
-| (HEAD) | feat(ui): enrich form input guides across settings dialogs and solver panel |
+| (HEAD) | feat(ui): organize /settings into tabs and collapse /schedule fairness dashboard |
+| `14fa8ba` | feat(ui): enrich form input guides across settings dialogs and solver panel |
 | `c348706` | feat(ui): add pre-login landing page with AI auto-scheduling pitch and free signup CTA |
 | `d4e235c` | feat(ui): add beginner-friendly guides (HelpTip / PageIntroCard / StaffOnboardingHint / NextActionsCard) |
 | `3b7e9a3` | docs(status): mark Phase 1-2 production deploy complete |
-| `27f9dee` | fix(deploy): use fallback rewrite so Auth.js dynamic route wins |
 
 ## TODO / フェーズ2 候補
 

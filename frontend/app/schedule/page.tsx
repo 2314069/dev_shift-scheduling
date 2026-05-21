@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { getNextMonthRange, getThisMonthRange } from "@/lib/date-helpers";
@@ -35,6 +35,11 @@ import { FairnessDashboard } from "@/components/fairness-dashboard";
 import { OnboardingHintCard } from "@/components/onboarding/onboarding-hint-card";
 import { PageIntroCard } from "@/components/onboarding/page-intro-card";
 import { HelpTip } from "@/components/ui/help-tip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export default function SchedulePage() {
   // Period management state
@@ -78,6 +83,9 @@ export default function SchedulePage() {
 
   // Publish confirm dialog
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+
+  // 公平性ダッシュボードの開閉。縦に長いので初期 closed にし、必要なときだけ開く。
+  const [fairnessOpen, setFairnessOpen] = useState(false);
 
   // Fetch all periods
   const fetchPeriods = useCallback(async () => {
@@ -532,9 +540,30 @@ export default function SchedulePage() {
         </Card>
       )}
 
-      {/* Fairness Dashboard */}
+      {/* Fairness Dashboard (折りたたみ可能) */}
       {selectedPeriodId && (
-        <FairnessDashboard periodId={Number(selectedPeriodId)} />
+        <Collapsible open={fairnessOpen} onOpenChange={setFairnessOpen}>
+          <Card>
+            <CollapsibleTrigger
+              className="flex w-full items-center justify-between gap-2 p-6 text-left hover:bg-muted/50 rounded-lg transition-colors"
+              aria-label="公平性ダッシュボードの開閉"
+            >
+              <span className="text-lg font-semibold">
+                公平性ダッシュボード
+              </span>
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform ${
+                  fairnessOpen ? "rotate-180" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-6 pb-6 pt-0">
+                <FairnessDashboard periodId={Number(selectedPeriodId)} />
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
       {/* Publish confirm dialog */}
